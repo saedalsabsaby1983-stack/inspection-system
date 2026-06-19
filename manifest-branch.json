@@ -1,0 +1,22 @@
+{
+  "name": "نظام المفتش الفرعي - وزارة الشؤون الاجتماعية والعمل",
+  "short_name": "المفتش الفرعي",
+  "description": "تطبيق التفتيش الميداني للمفتش الفرعي",
+  "start_url": "./استمارة_الفرعي.html",
+  "display": "standalone",
+  "background_color": "#1a3a5c",
+  "theme_color": "#1a3a5c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
