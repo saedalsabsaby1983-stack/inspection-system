@@ -2,26 +2,15 @@
 // ملف ضبط الاتصال بقاعدة البيانات المشتركة (Firebase)
 // هذا الملف هو "الجسر" الذي يربط بين برنامج المفتش الفرعي وبرنامج المفتش المركزي
 // ====================================================================
-//
-// ⚠️ تعليمات الإعداد (مرة واحدة فقط):
-// 1) اذهب إلى https://console.firebase.google.com وأنشئ مشروعاً جديداً
-// 2) من إعدادات المشروع → "Add app" → اختر Web (</>) → انسخ بيانات firebaseConfig
-// 3) فعّل "Realtime Database" من القائمة الجانبية (Build → Realtime Database → Create Database)
-// 4) اضبط قواعد القراءة/الكتابة (Rules) كما هو موضح في ملف التعليمات المرفق
-// 5) استبدل القيم أدناه ببياناتك الحقيقية، ثم احفظ الملف
-//
-// طالما القيم أدناه لم تُستبدل، يعمل النظام بوضع احتياطي محلي (نفس الجهاز فقط)
-// بدون أي خطأ في الصفحة، إلى أن يتم الضبط.
-// ====================================================================
 
 const firebaseConfig = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME",
-  databaseURL: "REPLACE_ME",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME"
+  apiKey: "AIzaSyBaXzHNkS7f7ec7ipNg9rVfscER3ae8aNA",
+  authDomain: "inspection-system-saed.firebaseapp.com",
+  databaseURL: "https://inspection-system-saed-default-rtdb.firebaseio.com",
+  projectId: "inspection-system-saed",
+  storageBucket: "inspection-system-saed.firebasestorage.app",
+  messagingSenderId: "522722341414",
+  appId: "1:522722341414:web:9dafddbb21fd695d1aace7"
 };
 
 let db = null;
@@ -36,4 +25,3 @@ try {
 } catch (e) {
   console.warn('⚠️ تعذرت تهيئة Firebase:', e.message);
 }
-
