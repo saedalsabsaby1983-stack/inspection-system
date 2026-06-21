@@ -268,6 +268,7 @@ textarea.form-control { min-height: 70px; resize: vertical; }
     <hr class="sidebar-divider">
     <button class="sidebar-item" onclick="openImport()">📥 <span>استيراد JSON</span></button>
     <button class="sidebar-item" onclick="exportAll()">📤 <span>تصدير الكل</span></button>
+    <button class="sidebar-item" onclick="listBackups()">🗄️ <span>النسخ الاحتياطية</span></button>
     <button class="sidebar-item" onclick="window.print()">🖨️ <span>طباعة</span></button>
     <button class="sidebar-item" onclick="openVideoCall()">📹 <span>اتصال بمفتش فرعي</span></button>
   </div>
@@ -1082,6 +1083,58 @@ function exportAll() {
   const blob = new Blob([JSON.stringify(forms, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'central-forms-' + Date.now() + '.json'; a.click();
+}
+
+// ===== AUTOMATIC BACKUP =====
+// ينشئ نسخة احتياطية يومية تلقائية داخل Firebase نفسه تحت مسار منفصل "backups"
+// هذا يحمي من الحذف العرضي لبيانات "inspections" — النسخة الاحتياطية اليومية تبقى محفوظة بشكل مستقل
+async function runDailyBackup() {
+  if (!SyncEngine.isFirebaseReady() || !forms.length) return;
+  const today = new Date().toISOString().split('T')[0];
+  const backupKey = 'backup_' + today;
+  try {
+    // تحقق هل تم عمل نسخة احتياطية اليوم بالفعل لتجنب التكرار
+    const existing = await db.ref('backups/' + backupKey + '/meta').once('value');
+    if (existing.exists()) return;
+    await db.ref('backups/' + backupKey).set({
+      meta: { date: today, count: forms.length, createdAt: Date.now() },
+      data: forms
+    });
+    console.log('✓ تم إنشاء نسخة احتياطية يومية: ' + backupKey);
+  } catch (e) {
+    console.warn('تعذر إنشاء النسخة الاحتياطية اليومية:', e.message);
+  }
+}
+
+// تشغيل النسخ الاحتياطي عند تحميل الصفحة، ثم كل 6 ساعات للتأكد من عدم فوات أي يوم
+setTimeout(runDailyBackup, 10000);
+setInterval(runDailyBackup, 6 * 60 * 60 * 1000);
+
+async function listBackups() {
+  if (!SyncEngine.isFirebaseReady()) { alert('قاعدة البيانات غير متصلة حالياً'); return; }
+  try {
+    const snap = await db.ref('backups').once('value');
+    const backups = snap.val() || {};
+    const keys = Object.keys(backups).sort().reverse();
+    if (!keys.length) { alert('لا توجد نسخ احتياطية بعد. سيتم إنشاء أول نسخة تلقائياً خلال دقائق من فتح هذه الصفحة.'); return; }
+    const list = keys.slice(0, 15).map(k => {
+      const b = backups[k];
+      const d = b.meta ? b.meta.date : k.replace('backup_','');
+      const c = b.meta ? b.meta.count : (b.data ? b.data.length : '?');
+      return `${d} — ${c} استمارة`;
+    }).join('\n');
+    const choice = prompt('النسخ الاحتياطية المتوفرة (آخر 15 يوماً):\n\n' + list + '\n\nاكتب التاريخ (YYYY-MM-DD) لاستعادة نسخة معينة، أو اتركه فارغاً للإلغاء:');
+    if (choice && backups['backup_' + choice]) {
+      if (confirm('هل أنت متأكد من استعادة نسخة ' + choice + '؟ سيتم استبدال البيانات المعروضة حالياً (لن يحذف شيئاً من Firebase الأصلي).')) {
+        const restoredData = backups['backup_' + choice].data || [];
+        forms = restoredData;
+        updateAll();
+        alert('تم استرجاع نسخة ' + choice + ' بنجاح (' + restoredData.length + ' استمارة) — هذه نسخة للعرض، اضغط تصدير Excel لحفظها.');
+      }
+    }
+  } catch (e) {
+    alert('خطأ في جلب النسخ الاحتياطية: ' + e.message);
+  }
 }
 
 function openFirebaseSetup() {
