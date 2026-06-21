@@ -9,6 +9,7 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
   --primary: #1a3a5c;
@@ -202,7 +203,13 @@ textarea.form-control { min-height: 70px; resize: vertical; }
 .sync-indicator.connected .dot { background: #4caf50; animation: pulse 1.5s infinite; }
 .sync-indicator.disconnected .dot { background: #f44336; }
 
+/* Filter grid */
+.filter-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; align-items: end; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--muted); }
+
 @media (max-width: 900px) {
+  .filter-grid { grid-template-columns: 1fr 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .province-grid { grid-template-columns: repeat(4,1fr); }
   .sidebar { display: none; }
@@ -353,6 +360,58 @@ textarea.form-control { min-height: 70px; resize: vertical; }
 
     <!-- STATS PANEL -->
     <div id="panel-stats" class="panel">
+      <div class="card">
+        <div class="card-header"><span>🔎</span><h3>فلترة البيانات وتصدير التقارير</h3></div>
+        <div class="card-body">
+          <div class="filter-grid">
+            <div class="form-group">
+              <label class="form-label">المحافظة</label>
+              <select class="form-control" id="flt-province" onchange="applyFilters()">
+                <option value="">كل المحافظات</option>
+                <option>دمشق</option><option>ريف دمشق</option><option>حلب</option>
+                <option>حمص</option><option>حماة</option><option>اللاذقية</option>
+                <option>طرطوس</option><option>دير الزور</option><option>الرقة</option>
+                <option>الحسكة</option><option>درعا</option><option>القنيطرة</option>
+                <option>السويداء</option><option>إدلب</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">من تاريخ</label>
+              <input type="date" class="form-control" id="flt-from" onchange="applyFilters()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">إلى تاريخ</label>
+              <input type="date" class="form-control" id="flt-to" onchange="applyFilters()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">المفتش الفرعي</label>
+              <select class="form-control" id="flt-inspector" onchange="applyFilters()">
+                <option value="">كل المفتشين</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">التصنيف</label>
+              <select class="form-control" id="flt-classification" onchange="applyFilters()">
+                <option value="">كل التصنيفات</option>
+                <option value="ok">✅ مستوفٍ</option>
+                <option value="minor">⚠️ بسيطة</option>
+                <option value="medium">🟠 متوسطة</option>
+                <option value="major">🔴 جسيمة</option>
+                <option value="danger">⛔ خطر داهم</option>
+              </select>
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end">
+              <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center" onclick="resetFilters()">↺ إعادة تعيين</button>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:4px">
+            <button class="btn btn-success btn-sm" onclick="exportFilteredExcel()">📊 تصدير Excel (حسب الفلترة الحالية)</button>
+            <button class="btn btn-primary btn-sm" onclick="exportProvinceExcel()">📍 تصدير Excel لكل محافظة (ملف منفصل لكل محافظة)</button>
+            <button class="btn btn-accent btn-sm" onclick="exportAllExcelCombined()">📦 تصدير Excel شامل (كل البيانات + ملخص إحصائي)</button>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px" id="filter-result-count"></div>
+        </div>
+      </div>
       <div class="stats-grid">
         <div class="stat-box"><div class="stat-num" id="s-visits">0</div><div class="stat-label">إجمالي الزيارات</div></div>
         <div class="stat-box"><div class="stat-num" id="s-compliant">0</div><div class="stat-label">منشآت مستوفية</div></div>
@@ -364,7 +423,7 @@ textarea.form-control { min-height: 70px; resize: vertical; }
         <div class="card-body"><div class="bar-chart" id="stats-bar-chart"></div></div>
       </div>
       <div class="card">
-        <div class="card-header"><span>📋</span><h3>سجل الاستمارات الفرعية الكامل</h3></div>
+        <div class="card-header"><span>📋</span><h3>سجل الاستمارات الفرعية (حسب الفلترة الحالية)</h3></div>
         <div class="card-body" style="overflow-x:auto">
           <table class="data-table">
             <thead><tr><th>#</th><th>المفتش</th><th>المنشأة</th><th>المحافظة</th><th>التاريخ</th><th>التصنيف</th><th>المخالفات</th><th>الحالة</th><th>إجراءات</th></tr></thead>
@@ -789,25 +848,29 @@ function updateStats() {
 }
 
 function updateStatsPanel() {
-  document.getElementById('s-visits').textContent = forms.length;
-  document.getElementById('s-compliant').textContent = forms.filter(f=>f.step7&&f.step7.classification==='ok').length;
-  document.getElementById('s-viol').textContent = forms.filter(f=>f.step7&&f.step7.classification&&f.step7.classification!=='ok').length;
-  const provs = new Set(forms.map(getProvince));
+  populateInspectorFilter();
+  const filtered = getFilteredForms();
+  document.getElementById('filter-result-count').textContent = `📊 عدد النتائج المطابقة للفلترة الحالية: ${filtered.length} من أصل ${forms.length}`;
+
+  document.getElementById('s-visits').textContent = filtered.length;
+  document.getElementById('s-compliant').textContent = filtered.filter(f=>f.step7&&f.step7.classification==='ok').length;
+  document.getElementById('s-viol').textContent = filtered.filter(f=>f.step7&&f.step7.classification&&f.step7.classification!=='ok').length;
+  const provs = new Set(filtered.map(getProvince));
   document.getElementById('s-provs').textContent = provs.size;
 
-  const provinces = ['دمشق','حلب','حمص','حماة','اللاذقية','طرطوس','إدلب'];
+  const provinces = ['دمشق','ريف دمشق','حلب','حمص','حماة','اللاذقية','طرطوس','دير الزور','الرقة','الحسكة','درعا','القنيطرة','السويداء','إدلب'];
   const counts = {};
-  forms.forEach(f => { const p = getProvince(f); counts[p] = (counts[p]||0)+1; });
+  filtered.forEach(f => { const p = getProvince(f); counts[p] = (counts[p]||0)+1; });
   const maxC = Math.max(...Object.values(counts), 1);
-  document.getElementById('stats-bar-chart').innerHTML = provinces.map(p => `
+  document.getElementById('stats-bar-chart').innerHTML = provinces.filter(p=>counts[p]).map(p => `
     <div class="bar-col">
       <div class="bar-val">${counts[p]||0}</div>
       <div class="bar" style="height:${Math.round((counts[p]||0)/maxC*80)}px"></div>
       <div class="bar-lbl">${p}</div>
     </div>
-  `).join('');
+  `).join('') || '<div style="color:var(--muted);font-size:12px;padding:10px">لا توجد بيانات مطابقة</div>';
 
-  document.getElementById('full-table').innerHTML = forms.length ? forms.map((f,i) => `
+  document.getElementById('full-table').innerHTML = filtered.length ? filtered.map((f,i) => `
     <tr>
       <td>${i+1}</td>
       <td>${getLabel(f)}</td>
@@ -819,7 +882,155 @@ function updateStatsPanel() {
       <td>${getStatusBadge(f)}</td>
       <td><button class="btn btn-sm btn-primary" onclick="openReview('${f.sessionId}')">🔍</button></td>
     </tr>
-  `).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">لا توجد بيانات بعد</td></tr>';
+  `).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">لا توجد بيانات مطابقة لمعايير الفلترة</td></tr>';
+}
+
+// ===== FILTERING =====
+function populateInspectorFilter() {
+  const sel = document.getElementById('flt-inspector');
+  if (!sel) return;
+  const current = sel.value;
+  const names = [...new Set(forms.map(getLabel).filter(n => n && n !== 'غير محدد'))].sort();
+  sel.innerHTML = '<option value="">كل المفتشين</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+  sel.value = current;
+}
+
+function getFilteredForms() {
+  const province = document.getElementById('flt-province') ? document.getElementById('flt-province').value : '';
+  const from = document.getElementById('flt-from') ? document.getElementById('flt-from').value : '';
+  const to = document.getElementById('flt-to') ? document.getElementById('flt-to').value : '';
+  const inspector = document.getElementById('flt-inspector') ? document.getElementById('flt-inspector').value : '';
+  const classification = document.getElementById('flt-classification') ? document.getElementById('flt-classification').value : '';
+
+  return forms.filter(f => {
+    if (province && getProvince(f) !== province) return false;
+    if (inspector && getLabel(f) !== inspector) return false;
+    if (classification && (!f.step7 || f.step7.classification !== classification)) return false;
+    const d = getDate(f);
+    if (from && d && d < from) return false;
+    if (to && d && d > to) return false;
+    return true;
+  });
+}
+
+function applyFilters() {
+  updateStatsPanel();
+}
+
+function resetFilters() {
+  ['flt-province','flt-from','flt-to','flt-inspector','flt-classification'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  updateStatsPanel();
+}
+
+// ===== EXCEL EXPORT =====
+function formToRow(f) {
+  return {
+    'اسم المفتش': getLabel(f),
+    'الرقم الوظيفي': f.step1 && f.step1.inspectorId ? f.step1.inspectorId : '',
+    'المحافظة': getProvince(f),
+    'اسم المنشأة': getFacility(f),
+    'رقم السجل التجاري': f.step2 && f.step2.regNum ? f.step2.regNum : '',
+    'القطاع': f.step2 && f.step2.sector ? f.step2.sector : '',
+    'تاريخ الزيارة': getDate(f),
+    'نوع الزيارة': f.step1 && f.step1.visitType ? f.step1.visitType : '',
+    'عدد العمال': f.step2 && f.step2.workers ? f.step2.workers.total || '' : '',
+    'صاحب العمل': f.step2 && f.step2.employer ? f.step2.employer.name || '' : '',
+    'التصنيف': f.step7 && f.step7.classification ? f.step7.classification : '',
+    'عدد المخالفات': f.compliance ? Object.values(f.compliance).filter(v=>v==='no').length : 0,
+    'عدد البنود الجزئية': f.compliance ? Object.values(f.compliance).filter(v=>v==='partial').length : 0,
+    'الإجراء الموصى به': f.step7 && f.step7.action ? f.step7.action : '',
+    'ملخص المخالفات': f.step7 && f.step7.violations ? f.step7.violations : '',
+    'التوصيات': f.step7 && f.step7.recommendations ? f.step7.recommendations : '',
+    'حالة المراجعة المركزية': f._status || 'received',
+    'قرار المركزي': f._centralDecision || '',
+    'ملاحظات المركزي': f._centralNotes || '',
+    'خط العرض GPS': f.step1 && f.step1.gps ? f.step1.gps.lat || '' : '',
+    'خط الطول GPS': f.step1 && f.step1.gps ? f.step1.gps.lng || '' : '',
+    'رقم الجلسة': f.sessionId || '',
+    'توقيت الإرسال': f.timestamp || ''
+  };
+}
+
+function downloadWorkbook(wb, filename) {
+  XLSX.writeFile(wb, filename);
+}
+
+function exportFilteredExcel() {
+  const filtered = getFilteredForms();
+  if (!filtered.length) { alert('لا توجد بيانات مطابقة للفلترة الحالية للتصدير'); return; }
+  const rows = filtered.map(formToRow);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'تقرير التفتيش');
+  const province = document.getElementById('flt-province').value || 'الكل';
+  downloadWorkbook(wb, `تقرير_تفتيش_${province}_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function exportProvinceExcel() {
+  if (!forms.length) { alert('لا توجد بيانات للتصدير'); return; }
+  const wb = XLSX.utils.book_new();
+  const provinces = [...new Set(forms.map(getProvince))].filter(p => p && p !== '—');
+  provinces.forEach(province => {
+    const provForms = forms.filter(f => getProvince(f) === province);
+    const rows = provForms.map(formToRow);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Sheet names max 31 chars, no special chars
+    const sheetName = province.substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+  downloadWorkbook(wb, `تقرير_تفتيش_حسب_المحافظات_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function exportAllExcelCombined() {
+  if (!forms.length) { alert('لا توجد بيانات للتصدير'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: All data combined
+  const allRows = forms.map(formToRow);
+  const wsAll = XLSX.utils.json_to_sheet(allRows);
+  XLSX.utils.book_append_sheet(wb, wsAll, 'كل البيانات');
+
+  // Sheet 2: Summary statistics by province
+  const provinces = [...new Set(forms.map(getProvince))].filter(p => p && p !== '—');
+  const summaryRows = provinces.map(p => {
+    const provForms = forms.filter(f => getProvince(f) === p);
+    return {
+      'المحافظة': p,
+      'إجمالي الزيارات': provForms.length,
+      'منشآت مستوفية': provForms.filter(f=>f.step7&&f.step7.classification==='ok').length,
+      'مخالفات بسيطة': provForms.filter(f=>f.step7&&f.step7.classification==='minor').length,
+      'مخالفات متوسطة': provForms.filter(f=>f.step7&&f.step7.classification==='medium').length,
+      'مخالفات جسيمة': provForms.filter(f=>f.step7&&f.step7.classification==='major').length,
+      'خطر داهم': provForms.filter(f=>f.step7&&f.step7.classification==='danger').length,
+      'عدد المفتشين النشطين': new Set(provForms.map(getLabel)).size
+    };
+  });
+  // Add grand total row
+  summaryRows.push({
+    'المحافظة': 'الإجمالي العام',
+    'إجمالي الزيارات': forms.length,
+    'منشآت مستوفية': forms.filter(f=>f.step7&&f.step7.classification==='ok').length,
+    'مخالفات بسيطة': forms.filter(f=>f.step7&&f.step7.classification==='minor').length,
+    'مخالفات متوسطة': forms.filter(f=>f.step7&&f.step7.classification==='medium').length,
+    'مخالفات جسيمة': forms.filter(f=>f.step7&&f.step7.classification==='major').length,
+    'خطر داهم': forms.filter(f=>f.step7&&f.step7.classification==='danger').length,
+    'عدد المفتشين النشطين': new Set(forms.map(getLabel)).size
+  });
+  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'ملخص إحصائي');
+
+  // Sheet per province
+  provinces.forEach(province => {
+    const provForms = forms.filter(f => getProvince(f) === province);
+    const rows = provForms.map(formToRow);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, province.substring(0, 31));
+  });
+
+  downloadWorkbook(wb, `تقرير_شامل_نظام_التفتيش_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 // ===== IMPORT =====
@@ -833,6 +1044,7 @@ function handleJSONImport(input) {
   reader.onload = e => { document.getElementById('json-paste').value = e.target.result; importFromPaste(); };
   reader.readAsText(file);
 }
+
 
 function importFromPaste() {
   const txt = document.getElementById('json-paste').value.trim();
