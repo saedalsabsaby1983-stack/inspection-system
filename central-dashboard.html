@@ -775,37 +775,164 @@ function makeDecision(sid, status) {
   updateAll();
 }
 
+// تعريف بنود الامتثال (نفس البنود الموجودة في استمارة المفتش الفرعي) لعرض حالة كل بند بالتفصيل
+const reviewComplianceItems = {
+  3: [
+    { id: 'c3-1', text: 'وجود عقود عمل خطية لجميع العمال', ref: 'م.47/أ' },
+    { id: 'c3-2', text: 'الاحتفاظ بنسخة العقد لدى فرع التأمينات', ref: 'م.47/أ' },
+    { id: 'c3-3', text: 'صرف الرواتب في الموعد المحدد (قبل اليوم الرابع)', ref: 'م.78/أ-1' },
+    { id: 'c3-4', text: 'الاقتطاعات لا تتجاوز 20% من الراتب', ref: 'م.83' },
+    { id: 'c3-5', text: 'تسجيل جميع العمال في التأمينات الاجتماعية', ref: 'م.93/م' },
+    { id: 'c3-6', text: 'مطابقة الأجور الفعلية للأجور المقررة في العقد', ref: 'م.48' },
+  ],
+  4: [
+    { id: 'c4-1', text: 'توفر وسائل الإسعاف الأولية', ref: 'م.94/أ-1' },
+    { id: 'c4-2', text: 'توفر معدات الوقاية الشخصية لجميع العمال', ref: 'م.93/أ' },
+    { id: 'c4-3', text: 'عدم وجود أخطار واضحة تهدد سلامة العمال', ref: 'م.147/ب' },
+    { id: 'c4-4', text: 'وجود إجراءات طوارئ وخطة إخلاء', ref: 'م.93/أ' },
+    { id: 'c4-5', text: 'الكشف الطبي الدوري للعمال في البيئات الخطرة', ref: 'م.142/ب' },
+    { id: 'c4-6', text: 'توفير طبيب أو ممرض عند وجود 50+ عامل', ref: 'م.94/أ-2' },
+  ],
+  5: [
+    { id: 'c5-1', text: 'ساعات العمل لا تتجاوز 8 ساعات يومياً / 48 أسبوعياً', ref: 'م.106/أ' },
+    { id: 'c5-2', text: 'تطبيق أجر الساعة الإضافية (25% نهار / 50% ليل)', ref: 'م.111' },
+    { id: 'c5-3', text: 'منح الراحة الأسبوعية (24 ساعة متواصلة بأجر)', ref: 'م.109/أ' },
+    { id: 'c5-4', text: 'منح الإجازة السنوية (14+ يوم)', ref: 'م.155/أ' },
+    { id: 'c5-5', text: 'عدم تشغيل أحداث دون 15 سنة', ref: 'م.113/أ' },
+    { id: 'c5-6', text: 'منح إجازة أمومة كاملة للعاملات', ref: 'م.121/أ' },
+    { id: 'c5-7', text: 'المساواة في الأجور بين الجنسين', ref: 'م.75' },
+    { id: 'c5-8', text: 'حق العمال في الانضمام للنقابات', ref: 'م.95/أ-5' },
+  ]
+};
+
+function complianceStatusBadge(val) {
+  if (val === 'ok') return '<span class="status-badge s-approved">✅ مستوفٍ</span>';
+  if (val === 'partial') return '<span class="status-badge s-reviewing">⚠️ جزئي</span>';
+  if (val === 'no') return '<span class="status-badge s-urgent">❌ مخالف</span>';
+  return '<span class="status-badge" style="background:#f0f0f0;color:#999">— لم يُقيَّم</span>';
+}
+
+function renderComplianceSection(form, sectionNum, title) {
+  const items = reviewComplianceItems[sectionNum] || [];
+  const compliance = form.compliance || {};
+  const rows = items.map(item => `
+    <div class="detail-row" style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:8px;align-items:center">
+      <div style="flex:3;font-size:12px">${item.text} <span class="compliance-ref" style="color:var(--accent);font-weight:700;font-size:10px">${item.ref}</span></div>
+      <div style="flex:1;text-align:left">${complianceStatusBadge(compliance[item.id])}</div>
+    </div>
+  `).join('');
+  return `
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-header"><h3>${title}</h3></div>
+      <div class="card-body">${rows || '<div style="color:var(--muted);font-size:12px">لا توجد بيانات لهذا القسم</div>'}</div>
+    </div>
+  `;
+}
+
 function openReview(sid) {
   const form = forms.find(f => f.sessionId === sid);
   if (!form) return;
   showPanel('review');
   const el = document.getElementById('review-content');
+
+  const s1 = form.step1 || {};
+  const s2 = form.step2 || {};
+  const s7 = form.step7 || {};
+  const gps = s1.gps || {};
+  const team = s1.team || {};
+  const workers = s2.workers || {};
+  const employer = s2.employer || {};
+
+  const eventsHtml = (form.events && form.events.length) ? `
+    <div class="timeline" style="margin-top:8px">
+      ${form.events.map(e => `
+        <div class="tl-item done">
+          <div class="tl-time">${e.time}</div>
+          <div class="tl-text">${e.text}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '<div style="color:var(--muted);font-size:12px">لا يوجد سجل أحداث مسجَّل</div>';
+
   el.innerHTML = `
     <div style="text-align:right">
       <button class="btn btn-outline btn-sm" onclick="showPanel('incoming')" style="margin-bottom:12px">◄ العودة للقائمة</button>
-      <h3 style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:12px">مراجعة تفصيلية — ${getFacility(form)}</h3>
+      <h3 style="font-size:15px;font-weight:800;color:var(--primary);margin-bottom:4px">📋 مراجعة تفصيلية كاملة — ${getFacility(form)}</h3>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">رقم الجلسة: ${form.sessionId || '—'} | توقيت الإرسال: ${form.timestamp ? new Date(form.timestamp).toLocaleString('ar-SA') : '—'}</div>
     </div>
-    <div class="detail-card">
-      <div class="detail-row">
-        <div class="detail-field"><div class="detail-label">المفتش</div><div class="detail-value">${getLabel(form)}</div></div>
-        <div class="detail-field"><div class="detail-label">المحافظة</div><div class="detail-value">${getProvince(form)}</div></div>
-        <div class="detail-field"><div class="detail-label">التاريخ</div><div class="detail-value">${getDate(form)}</div></div>
-        <div class="detail-field"><div class="detail-label">نوع الزيارة</div><div class="detail-value">${form.step1&&form.step1.visitType?form.step1.visitType:'—'}</div></div>
-        <div class="detail-field"><div class="detail-label">عدد العمال</div><div class="detail-value">${form.step2&&form.step2.workers?form.step2.workers.total||'—':'—'}</div></div>
-        <div class="detail-field"><div class="detail-label">صاحب العمل</div><div class="detail-value">${form.step2&&form.step2.employer?form.step2.employer.name||'—':'—'}</div></div>
+
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-header"><span>👤</span><h3>القسم 1: بيانات الزيارة والمفتش</h3></div>
+      <div class="card-body">
+        <div class="detail-row">
+          <div class="detail-field"><div class="detail-label">اسم المفتش الفرعي</div><div class="detail-value">${s1.inspectorName || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">الرقم الوظيفي</div><div class="detail-value">${s1.inspectorId || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">المسمى الوظيفي</div><div class="detail-value">${s1.title || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">مديرية المحافظة</div><div class="detail-value">${s1.province || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">تاريخ الزيارة</div><div class="detail-value">${s1.visitDate || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">نوع الزيارة</div><div class="detail-value">${s1.visitType || '—'}</div></div>
+        </div>
+        <div class="detail-row" style="margin-top:8px">
+          <div class="detail-field"><div class="detail-label">📍 إحداثيات GPS</div><div class="detail-value">${gps.lat ? `${gps.lat}, ${gps.lng} (دقة: ${gps.acc || '—'}م)` : 'لم يُحدَّد'}</div></div>
+          <div class="detail-field"><div class="detail-label">🤝 فريق التفتيش المشترك</div><div class="detail-value">${[team.i2, team.i3, team.ilo].filter(Boolean).join(' / ') || 'مفتش منفرد'}</div></div>
+        </div>
       </div>
     </div>
-    ${form.step7 ? `
-    <div class="decision-form">
-      <h4>📊 نتائج التفتيش</h4>
-      <div class="detail-row">
-        <div class="detail-field"><div class="detail-label">التصنيف</div><div class="detail-value">${getClassification(form)}</div></div>
-        <div class="detail-field"><div class="detail-label">الإجراء المقترح</div><div class="detail-value">${form.step7.action||'—'}</div></div>
+
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-header"><span>🏭</span><h3>القسم 2: معلومات المنشأة الكاملة</h3></div>
+      <div class="card-body">
+        <div class="detail-row">
+          <div class="detail-field"><div class="detail-label">اسم المنشأة</div><div class="detail-value">${s2.facilityName || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">رقم السجل التجاري</div><div class="detail-value">${s2.regNum || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">القطاع الاقتصادي</div><div class="detail-value">${s2.sector || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">المحافظة</div><div class="detail-value">${s2.province || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">العنوان التفصيلي</div><div class="detail-value">${s2.address || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">الهاتف / البريد</div><div class="detail-value">${[s2.phone, s2.email].filter(Boolean).join(' / ') || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">تاريخ التأسيس</div><div class="detail-value">${s2.founded || '—'}</div></div>
+        </div>
+        <h4 style="font-size:12px;color:var(--primary);margin:12px 0 6px">👥 القوى العاملة</h4>
+        <div class="detail-row">
+          <div class="detail-field"><div class="detail-label">إجمالي المسجَّلين</div><div class="detail-value">${workers.total || '0'}</div></div>
+          <div class="detail-field"><div class="detail-label">الحاضرون فعلياً</div><div class="detail-value">${workers.present || '0'}</div></div>
+          <div class="detail-field"><div class="detail-label">عمال أجانب</div><div class="detail-value">${workers.foreign || '0'}</div></div>
+          <div class="detail-field"><div class="detail-label">قُصَّر (دون 18)</div><div class="detail-value">${workers.minor || '0'}</div></div>
+          <div class="detail-field"><div class="detail-label">عاملات إناث</div><div class="detail-value">${workers.female || '0'}</div></div>
+          <div class="detail-field"><div class="detail-label">ذوو إعاقة</div><div class="detail-value">${workers.disabled || '0'}</div></div>
+        </div>
+        <h4 style="font-size:12px;color:var(--primary);margin:12px 0 6px">👤 صاحب العمل</h4>
+        <div class="detail-row">
+          <div class="detail-field"><div class="detail-label">الاسم</div><div class="detail-value">${employer.name || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">رقم الهوية</div><div class="detail-value">${employer.id || '—'}</div></div>
+          <div class="detail-field"><div class="detail-label">الحضور أثناء التفتيش</div><div class="detail-value">${employer.present === 'yes' ? 'نعم' : employer.present === 'no' ? 'لا' : employer.present === 'rep' ? 'ممثل قانوني' : '—'}</div></div>
+        </div>
       </div>
-      <div style="margin-top:8px"><strong>المخالفات:</strong> ${form.step7.violations||'—'}</div>
-      <div style="margin-top:6px"><strong>التوصيات:</strong> ${form.step7.recommendations||'—'}</div>
-      <div style="margin-top:6px"><strong>ملاحظات للمركزي:</strong> ${form.step7.notes||'—'}</div>
-    </div>` : ''}
+    </div>
+
+    ${renderComplianceSection(form, 3, '📄 القسم 3: عقود العمل والأجور — حالة كل بند')}
+    ${renderComplianceSection(form, 4, '🦺 القسم 4: السلامة والصحة المهنية — حالة كل بند')}
+    ${renderComplianceSection(form, 5, '⚖️ القسم 5: حقوق العمال وضمانات التوظيف — حالة كل بند')}
+
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-header"><span>⏱️</span><h3>القسم 6: سجل الأحداث الزمني للزيارة</h3></div>
+      <div class="card-body">${eventsHtml}</div>
+    </div>
+
+    <div class="decision-form" style="margin-bottom:10px">
+      <h4>📊 القسم 7: النتائج النهائية كما أرسلها المفتش الفرعي</h4>
+      <div class="detail-row">
+        <div class="detail-field"><div class="detail-label">التصنيف العام</div><div class="detail-value">${getClassification(form)}</div></div>
+        <div class="detail-field"><div class="detail-label">الإجراء الموصى به</div><div class="detail-value">${s7.action || '—'}</div></div>
+      </div>
+      <div style="margin-top:8px"><strong>ملخص المخالفات والملاحظات:</strong><br>${s7.violations || '—'}</div>
+      <div style="margin-top:6px"><strong>التوصيات المقترحة:</strong><br>${s7.recommendations || '—'}</div>
+      <div style="margin-top:6px"><strong>ملاحظات خاصة موجَّهة للمركزي:</strong><br>${s7.notes || '—'}</div>
+      <div class="detail-row" style="margin-top:10px">
+        <div class="detail-field"><div class="detail-label">ممثل المنشأة الموقّع</div><div class="detail-value">${s7.signee || '—'}</div></div>
+        <div class="detail-field"><div class="detail-label">هل وقّع صاحب العمل</div><div class="detail-value">${s7.signed || '—'}</div></div>
+      </div>
+    </div>
+
     <div class="decision-form" style="margin-top:12px">
       <h4>🔍 قرار المفتش المركزي</h4>
       <select class="form-control" id="rv-decision">
@@ -817,16 +944,13 @@ function openReview(sid) {
         <option>إحالة للنيابة العامة</option>
         <option>إصدار أمر إغلاق</option>
       </select>
-      <textarea class="form-control" id="rv-notes" placeholder="ملاحظات المفتش المركزي..."></textarea>
+      <textarea class="form-control" id="rv-notes" placeholder="ملاحظات المفتش المركزي...">${form._centralNotes || ''}</textarea>
       <div class="btn-row">
         <button class="btn btn-success btn-sm" onclick="finalDecision('${form.sessionId}','approved')">✅ موافقة وإغلاق</button>
         <button class="btn btn-warning btn-sm" onclick="finalDecision('${form.sessionId}','escalated')">📤 رفع للجهات العليا</button>
         <button class="btn btn-danger btn-sm" onclick="finalDecision('${form.sessionId}','urgent')">⛔ إجراء عاجل</button>
-        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ طباعة</button>
+        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ طباعة كامل الملف</button>
       </div>
-    </div>
-    <div style="text-align:left;margin-top:10px">
-      <pre style="background:#f0f4ff;border-radius:6px;padding:10px;font-size:10px;max-height:150px;overflow-y:auto;direction:ltr">${JSON.stringify(form,null,2).substring(0,800)}...</pre>
     </div>
   `;
 }
