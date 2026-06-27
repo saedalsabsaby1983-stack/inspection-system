@@ -1290,18 +1290,64 @@ function closeSendModal() {
 function confirmSend() {
   const data = collectFormData();
   data._syncStatus = 'pending';
-  SyncEngine.submitForm(data).then(result => {
+
+  // الخطوة 1: إرسال البيانات النصية فوراً (بدون الصور) لضمان وصول الاستمارة بسرعة
+  const dataWithoutPhotos = JSON.parse(JSON.stringify(data));
+  if (dataWithoutPhotos.attachments) {
+    // نحتفظ بمعلومات الملفات (الاسم والحجم) لكن نحذف البيانات الثقيلة (Base64)
+    dataWithoutPhotos.attachments.photos = (data.attachments.photos || []).map(p => ({
+      name: p.name, type: p.type, size: p.size, uploadedAt: p.uploadedAt,
+      data: null, // لا نرسل الصورة في هذه المرحلة
+      _pendingUpload: true // علامة أن الصورة ستُرسَل لاحقاً
+    }));
+  }
+
+  document.getElementById('send-status').innerHTML = '🔄 <strong>جاري الإرسال...</strong> يتم إرسال بيانات الاستمارة الآن.';
+  document.getElementById('send-status').className = 'alert alert-info';
+
+  SyncEngine.submitForm(dataWithoutPhotos).then(result => {
     if (result.online) {
-      document.getElementById('send-status').innerHTML = '✅ <strong>تم الإرسال بنجاح!</strong> وصلت الاستمارة فوراً إلى المفتش المركزي.';
+      document.getElementById('send-status').innerHTML = '✅ <strong>تم إرسال الاستمارة بنجاح!</strong> وصلت للمفتش المركزي. جاري إرسال الصور...';
       document.getElementById('send-status').className = 'alert alert-success';
-      addEvent('تم إرسال الاستمارة وزامنتها فوراً مع المركزي — رقم: ' + sessionId);
+      addEvent('تم إرسال بيانات الاستمارة للمركزي — رقم: ' + sessionId);
+
+      // الخطوة 2: إرسال الصور بشكل منفصل في الخلفية (بدون إيقاف المفتش)
+      const photos = (data.attachments && data.attachments.photos) ? data.attachments.photos.filter(p => p.data) : [];
+      if (photos.length > 0 && SyncEngine.isFirebaseReady()) {
+        sendPhotosInBackground(sessionId, photos);
+      } else {
+        document.getElementById('send-status').innerHTML = '✅ <strong>تم الإرسال بنجاح!</strong> وصلت الاستمارة فوراً إلى المفتش المركزي.';
+      }
     } else {
-      document.getElementById('send-status').innerHTML = '💾 <strong>تم الحفظ محلياً.</strong> لا يوجد اتصال بالإنترنت حالياً — سيتم إرسال الاستمارة للمفتش المركزي تلقائياً فور توفر الشبكة، بدون أي تدخل إضافي منك.';
+      document.getElementById('send-status').innerHTML = '💾 <strong>تم الحفظ محلياً.</strong> لا يوجد اتصال — سيتم الإرسال تلقائياً فور توفر الشبكة.';
       document.getElementById('send-status').className = 'alert alert-warning';
-      addEvent('تم حفظ الاستمارة محلياً (بدون اتصال) — ستُزامَن تلقائياً عند توفر الشبكة — رقم: ' + sessionId);
+      addEvent('تم حفظ الاستمارة محلياً — ستُزامَن تلقائياً — رقم: ' + sessionId);
     }
     updateSyncBadge();
   });
+}
+
+// إرسال الصور في الخلفية تباعاً (صورة واحدة في كل مرة لتخفيف الضغط)
+async function sendPhotosInBackground(sid, photos) {
+  const statusEl = document.getElementById('send-status');
+  let sent = 0;
+  for (const photo of photos) {
+    try {
+      if (typeof db !== 'undefined' && db !== null) {
+        await db.ref('inspections/' + sid + '/attachments/photos/' + sent).set(photo);
+        sent++;
+        if (statusEl) {
+          statusEl.innerHTML = `✅ <strong>تم الإرسال!</strong> جاري رفع الصور (${sent}/${photos.length})...`;
+        }
+      }
+    } catch(e) {
+      console.warn('تعذر رفع الصورة:', photo.name, e.message);
+    }
+  }
+  if (statusEl) {
+    statusEl.innerHTML = `✅ <strong>اكتمل الإرسال بالكامل!</strong> الاستمارة + ${sent} صورة وصلت للمفتش المركزي.`;
+  }
+  addEvent(`اكتمل رفع الصور: ${sent}/${photos.length} صورة`);
 }
 
 function downloadJSON() {
