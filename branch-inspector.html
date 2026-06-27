@@ -1094,16 +1094,112 @@ function takeSnapshot() {
 }
 
 // ===== UPLOAD =====
+// تخزين الملفات المرفوعة (الصور كـ Base64، الفيديو/PDF كمعلومات فقط)
+if (!window.uploadedFiles) window.uploadedFiles = { photos: [], docs: [] };
+
 function handleUpload(input, type) {
   const list = document.getElementById(type + '-list');
-  Array.from(input.files).forEach(f => {
-    const div = document.createElement('div');
-    div.style = 'display:flex;align-items:center;gap:8px;padding:6px 8px;background:#f0f4ff;border-radius:4px;margin-top:4px;font-size:12px';
-    div.innerHTML = `<span>📎</span><span>${f.name}</span><span style="color:var(--muted)">(${(f.size/1024).toFixed(0)} KB)</span>`;
-    list.appendChild(div);
-    addEvent('تم رفع الملف: ' + f.name);
+  const files = Array.from(input.files);
+
+  files.forEach(file => {
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const isPDF = file.type === 'application/pdf';
+    const sizeKB = (file.size / 1024).toFixed(0);
+    const sizeMB = (file.size / (1024*1024)).toFixed(1);
+
+    if (isImage && file.size <= 2 * 1024 * 1024) {
+      // صور أقل من 2MB: تُحوَّل لـ Base64 وتُحفَظ كاملة
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64 = e.target.result;
+        window.uploadedFiles[type].push({
+          name: file.name,
+          type: 'image',
+          mimeType: file.type,
+          size: sizeKB + ' KB',
+          data: base64, // الصورة كاملة
+          uploadedAt: new Date().toISOString()
+        });
+        // عرض الصورة مصغّرة في الاستمارة
+        const div = document.createElement('div');
+        div.style = 'display:flex;align-items:center;gap:8px;padding:6px 8px;background:#e8f5e9;border-radius:6px;margin-top:6px;font-size:12px';
+        div.innerHTML = `
+          <img src="${base64}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #a5d6a7">
+          <div>
+            <div style="font-weight:700;color:#1b5e20">✅ صورة محفوظة</div>
+            <div style="color:var(--muted)">${file.name} (${sizeKB} KB)</div>
+          </div>`;
+        list.appendChild(div);
+        addEvent('تم رفع صورة: ' + file.name + ' (' + sizeKB + ' KB)');
+      };
+      reader.readAsDataURL(file);
+
+    } else if (isImage && file.size > 2 * 1024 * 1024) {
+      // صور أكبر من 2MB: ضغط تلقائي قبل الحفظ
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 1200;
+          const scale = img.width > maxW ? maxW / img.width : 1;
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.7);
+          window.uploadedFiles[type].push({
+            name: file.name,
+            type: 'image',
+            mimeType: 'image/jpeg',
+            size: sizeKB + ' KB',
+            data: compressed,
+            uploadedAt: new Date().toISOString(),
+            compressed: true
+          });
+          const div = document.createElement('div');
+          div.style = 'display:flex;align-items:center;gap:8px;padding:6px 8px;background:#e8f5e9;border-radius:6px;margin-top:6px;font-size:12px';
+          div.innerHTML = `
+            <img src="${compressed}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #a5d6a7">
+            <div>
+              <div style="font-weight:700;color:#1b5e20">✅ صورة محفوظة (مضغوطة)</div>
+              <div style="color:var(--muted)">${file.name} (${sizeKB} KB → مضغوطة)</div>
+            </div>`;
+          list.appendChild(div);
+          addEvent('تم رفع صورة مضغوطة: ' + file.name);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+
+    } else {
+      // فيديو أو PDF أو مستندات: حفظ المعلومات فقط (الاسم، الحجم، النوع، التاريخ)
+      window.uploadedFiles[type].push({
+        name: file.name,
+        type: isVideo ? 'video' : isPDF ? 'pdf' : 'document',
+        mimeType: file.type,
+        size: file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB',
+        data: null, // لا يُحفَظ المحتوى (حجمه كبير جداً)
+        uploadedAt: new Date().toISOString()
+      });
+      const icon = isVideo ? '🎥' : isPDF ? '📄' : '📎';
+      const color = isVideo ? '#fff3e0' : '#fce4ec';
+      const textColor = isVideo ? '#e65100' : '#880e4f';
+      const div = document.createElement('div');
+      div.style = `display:flex;align-items:center;gap:8px;padding:8px 10px;background:${color};border-radius:6px;margin-top:6px;font-size:12px`;
+      div.innerHTML = `
+        <span style="font-size:20px">${icon}</span>
+        <div>
+          <div style="font-weight:700;color:${textColor}">${icon} ${isVideo ? 'فيديو مسجَّل' : isPDF ? 'مستند PDF' : 'مستند'} — سيُذكَر في تقرير المركزي</div>
+          <div style="color:var(--muted)">${file.name} (${file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB'})</div>
+          <div style="font-size:10px;color:var(--muted)">ملاحظة: يظهر كمعلومة دليلية في المركزي</div>
+        </div>`;
+      list.appendChild(div);
+      addEvent(`تم تسجيل ${isVideo ? 'فيديو' : 'مستند'}: ${file.name} (${file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB'})`);
+    }
   });
 }
+
 
 // ===== VIDEO CALL =====
 async function openVideoCall() {
@@ -1168,6 +1264,11 @@ function collectFormData() {
     step2: { facilityName: g('f-facility-name'), regNum: g('f-reg-num'), sector: g('f-sector'), province: g('f-facility-province'), address: g('f-address'), phone: g('f-phone'), email: g('f-email'), founded: g('f-founded'), workers: { total: g('f-workers-total'), present: g('f-workers-present'), foreign: g('f-workers-foreign'), minor: g('f-workers-minor'), female: g('f-workers-female'), disabled: g('f-workers-disabled') }, employer: { name: g('f-employer-name'), id: g('f-employer-id'), present: r('employer-present') } },
     compliance: complianceData,
     step7: { classification: g('f-classification'), action: g('f-action'), violations: g('f-violations'), recommendations: g('f-recommendations'), notes: g('f-notes-central'), signee: g('f-signee'), signed: g('f-signed') },
+    // الملفات المرفوعة: الصور كاملة (Base64)، الفيديو/المستندات كمعلومات فقط
+    attachments: {
+      photos: (window.uploadedFiles && window.uploadedFiles.photos) ? window.uploadedFiles.photos : [],
+      docs: (window.uploadedFiles && window.uploadedFiles.docs) ? window.uploadedFiles.docs : []
+    },
     events
   };
 }
