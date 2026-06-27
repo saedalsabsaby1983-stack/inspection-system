@@ -914,6 +914,68 @@ function openReview(sid) {
     ${renderComplianceSection(form, 5, '⚖️ القسم 5: حقوق العمال وضمانات التوظيف — حالة كل بند')}
 
     <div class="card" style="margin-bottom:10px">
+      <div class="card-header"><span>📎</span><h3>المرفقات والأدلة الميدانية</h3></div>
+      <div class="card-body">
+        ${(() => {
+          const att = form.attachments || {};
+          const photos = att.photos || [];
+          const docs = att.docs || [];
+          const allFiles = [...photos, ...docs];
+          if (!allFiles.length) return '<div style="color:var(--muted);font-size:12px">لا توجد مرفقات مرفوعة مع هذه الاستمارة</div>';
+
+          const images = allFiles.filter(f => f.type === 'image' && f.data);
+          const videos = allFiles.filter(f => f.type === 'video');
+          const pdfs = allFiles.filter(f => f.type === 'pdf' || f.type === 'document');
+
+          let html = '';
+
+          if (images.length) {
+            html += `<div style="margin-bottom:14px"><strong style="color:var(--primary);font-size:12px">📷 الصور الميدانية (${images.length} صورة):</strong><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">`;
+            images.forEach(img => {
+              html += `<div style="text-align:center">
+                <img src="${img.data}" style="width:120px;height:90px;object-fit:cover;border-radius:6px;border:2px solid #a5d6a7;cursor:pointer" onclick="window.open('${img.data}','_blank')" title="اضغط لعرض بالحجم الكامل">
+                <div style="font-size:10px;color:var(--muted);margin-top:3px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${img.name}</div>
+                <div style="font-size:10px;color:var(--muted)">${img.size}</div>
+              </div>`;
+            });
+            html += '</div></div>';
+          }
+
+          if (videos.length) {
+            html += `<div style="margin-bottom:10px"><strong style="color:#e65100;font-size:12px">🎥 التسجيلات الفيديو (${videos.length} ملف):</strong>`;
+            videos.forEach(v => {
+              html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:#fff3e0;border-radius:6px;margin-top:6px;font-size:12px">
+                <span style="font-size:24px">🎥</span>
+                <div>
+                  <div style="font-weight:700;color:#e65100">${v.name}</div>
+                  <div style="color:var(--muted)">الحجم: ${v.size} | رُفع: ${v.uploadedAt ? new Date(v.uploadedAt).toLocaleString('ar-SA') : '—'}</div>
+                  <div style="font-size:10px;color:#bf360c">دليل رسمي مسجَّل — الفيديو محفوظ على جهاز المفتش الميداني</div>
+                </div>
+              </div>`;
+            });
+            html += '</div>';
+          }
+
+          if (pdfs.length) {
+            html += `<div style="margin-bottom:10px"><strong style="color:#880e4f;font-size:12px">📄 المستندات والوثائق (${pdfs.length} ملف):</strong>`;
+            pdfs.forEach(p => {
+              html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:#fce4ec;border-radius:6px;margin-top:6px;font-size:12px">
+                <span style="font-size:24px">📄</span>
+                <div>
+                  <div style="font-weight:700;color:#880e4f">${p.name}</div>
+                  <div style="color:var(--muted)">الحجم: ${p.size} | رُفع: ${p.uploadedAt ? new Date(p.uploadedAt).toLocaleString('ar-SA') : '—'}</div>
+                </div>
+              </div>`;
+            });
+            html += '</div>';
+          }
+
+          return html;
+        })()}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:10px">
       <div class="card-header"><span>⏱️</span><h3>القسم 6: سجل الأحداث الزمني للزيارة</h3></div>
       <div class="card-body">${eventsHtml}</div>
     </div>
