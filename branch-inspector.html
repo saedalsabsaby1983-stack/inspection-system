@@ -1063,8 +1063,12 @@ function toggleRecord() {
     mediaRecorder.ondataavailable = e => recordChunks.push(e.data);
     mediaRecorder.onstop = () => {
       const blob = new Blob(recordChunks, { type: 'video/webm' });
+      const fileName = 'inspection-video-' + Date.now() + '.webm';
+      const file = new File([blob], fileName, { type: 'video/webm' });
+      attachCapturedFile(file, 'docs'); // رفع الفيديو المسجَّل تلقائياً وإرفاقه بالاستمارة
+      // نسخة احتياطية محلية اختيارية للمفتش (تحميل على جهازه)
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'inspection-' + Date.now() + '.webm'; a.click();
+      const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
     };
     mediaRecorder.start();
     isRecording = true;
@@ -1087,15 +1091,51 @@ function takeSnapshot() {
   canvas.width = video.videoWidth; canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video,0,0);
   canvas.toBlob(blob => {
+    const fileName = 'snapshot-' + Date.now() + '.jpg';
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    attachCapturedFile(file, 'photos'); // رفع الصورة الميدانية تلقائياً وإرفاقها بالاستمارة
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'snapshot-' + Date.now() + '.jpg'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
     addEvent('تم التقاط صورة ميدانية');
   });
 }
 
-// ===== UPLOAD =====
-// تخزين الملفات المرفوعة (الصور كـ Base64، الفيديو/PDF كمعلومات فقط)
+// يحوّل ملف الكاميرا (فيديو/صورة) إلى نفس مسار الرفع المستخدم لمدخلات الملفات، فيظهر في قائمة المرفقات ويُرفع للسحابة
+function attachCapturedFile(file, type) {
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  const fakeInput = { files: dt.files };
+  handleUpload(fakeInput, type);
+}
+
+// ===== UPLOAD (Cloudinary — صور + فيديو + مستندات تُرفع فعلياً وتظهر بالكامل في المركزي) =====
 if (!window.uploadedFiles) window.uploadedFiles = { photos: [], docs: [] };
+if (!window.pendingCloudUploads) window.pendingCloudUploads = []; // ملفات فشل رفعها وتنتظر إعادة المحاولة
+
+const CLOUDINARY_CONFIG = {
+  cloudName: 'duqznzjrd',
+  uploadPreset: 'inspection_upload'
+};
+
+function uploadToCloudinary(file) {
+  return new Promise((resolve, reject) => {
+    if (!CLOUDINARY_CONFIG.cloudName || !CLOUDINARY_CONFIG.uploadPreset) {
+      reject(new Error('Cloudinary غير مهيأ'));
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`;
+    fetch(url, { method: 'POST', body: formData })
+      .then(res => {
+        if (!res.ok) throw new Error('فشل الرفع — تحقق من إعداد upload preset في Cloudinary');
+        return res.json();
+      })
+      .then(json => resolve(json))
+      .catch(reject);
+  });
+}
 
 function handleUpload(input, type) {
   const list = document.getElementById(type + '-list');
@@ -1105,100 +1145,110 @@ function handleUpload(input, type) {
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
     const isPDF = file.type === 'application/pdf';
+    const kind = isImage ? 'image' : isVideo ? 'video' : isPDF ? 'pdf' : 'document';
     const sizeKB = (file.size / 1024).toFixed(0);
     const sizeMB = (file.size / (1024*1024)).toFixed(1);
+    const sizeLabel = file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB';
+    const icon = isImage ? '📷' : isVideo ? '🎥' : isPDF ? '📄' : '📎';
 
-    if (isImage && file.size <= 2 * 1024 * 1024) {
-      // صور أقل من 2MB: تُحوَّل لـ Base64 وتُحفَظ كاملة
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const base64 = e.target.result;
-        window.uploadedFiles[type].push({
-          name: file.name,
-          type: 'image',
-          mimeType: file.type,
-          size: sizeKB + ' KB',
-          data: base64, // الصورة كاملة
-          uploadedAt: new Date().toISOString()
-        });
-        // عرض الصورة مصغّرة في الاستمارة
-        const div = document.createElement('div');
-        div.style = 'display:flex;align-items:center;gap:8px;padding:6px 8px;background:#e8f5e9;border-radius:6px;margin-top:6px;font-size:12px';
+    // عنصر مؤقت يُظهر "جاري الرفع" فوراً، ويُستبدَل بعد اكتمال الرفع
+    const div = document.createElement('div');
+    div.style = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:#e3f2fd;border-radius:6px;margin-top:6px;font-size:12px';
+    div.innerHTML = `
+      <span style="font-size:20px">⏳</span>
+      <div>
+        <div style="font-weight:700;color:#0d47a1">جاري الرفع إلى السحابة...</div>
+        <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+      </div>`;
+    list.appendChild(div);
+
+    const fileRecordBase = { name: file.name, type: kind, mimeType: file.type, size: sizeLabel, uploadedAt: new Date().toISOString() };
+
+    uploadToCloudinary(file).then(result => {
+      const record = { ...fileRecordBase, url: result.secure_url };
+      window.uploadedFiles[type].push(record);
+
+      if (isImage) {
+        div.style.background = '#e8f5e9';
         div.innerHTML = `
-          <img src="${base64}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #a5d6a7">
+          <img src="${result.secure_url}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #a5d6a7;cursor:pointer" onclick="window.open('${result.secure_url}','_blank')">
           <div>
-            <div style="font-weight:700;color:#1b5e20">✅ صورة محفوظة</div>
-            <div style="color:var(--muted)">${file.name} (${sizeKB} KB)</div>
+            <div style="font-weight:700;color:#1b5e20">✅ صورة مرفوعة بنجاح</div>
+            <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
           </div>`;
-        list.appendChild(div);
-        addEvent('تم رفع صورة: ' + file.name + ' (' + sizeKB + ' KB)');
-      };
-      reader.readAsDataURL(file);
+      } else if (isVideo) {
+        div.style.background = '#fff3e0';
+        div.innerHTML = `
+          <span style="font-size:20px">🎥</span>
+          <div>
+            <div style="font-weight:700;color:#e65100">✅ فيديو مرفوع بنجاح — يظهر كاملاً للمركزي</div>
+            <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+            <a href="${result.secure_url}" target="_blank" style="font-size:11px;color:#1565c0">▶ مشاهدة الفيديو</a>
+          </div>`;
+      } else {
+        div.style.background = '#fce4ec';
+        div.innerHTML = `
+          <span style="font-size:20px">${icon}</span>
+          <div>
+            <div style="font-weight:700;color:#880e4f">✅ ${isPDF ? 'مستند PDF' : 'مستند'} مرفوع بنجاح</div>
+            <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+            <a href="${result.secure_url}" target="_blank" style="font-size:11px;color:#1565c0">📄 فتح المستند</a>
+          </div>`;
+      }
+      addEvent(`تم رفع ${isImage ? 'صورة' : isVideo ? 'فيديو' : 'مستند'} للسحابة: ${file.name} (${sizeLabel})`);
+    }).catch(err => {
+      console.warn('فشل رفع الملف لـ Cloudinary:', file.name, err.message);
+      // وضع احتياطي: صورة صغيرة تُحفَظ محلياً Base64، وأي ملف آخر يُحفَظ كمعلومة فقط + يُضاف لقائمة إعادة المحاولة
+      window.pendingCloudUploads.push({ file, type });
 
-    } else if (isImage && file.size > 2 * 1024 * 1024) {
-      // صور أكبر من 2MB: ضغط تلقائي قبل الحفظ
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.createElement('canvas');
-          const maxW = 1200;
-          const scale = img.width > maxW ? maxW / img.width : 1;
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.7);
-          window.uploadedFiles[type].push({
-            name: file.name,
-            type: 'image',
-            mimeType: 'image/jpeg',
-            size: sizeKB + ' KB',
-            data: compressed,
-            uploadedAt: new Date().toISOString(),
-            compressed: true
-          });
-          const div = document.createElement('div');
-          div.style = 'display:flex;align-items:center;gap:8px;padding:6px 8px;background:#e8f5e9;border-radius:6px;margin-top:6px;font-size:12px';
+      if (isImage && file.size <= 2 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64 = e.target.result;
+          window.uploadedFiles[type].push({ ...fileRecordBase, data: base64, _pendingCloudUpload: true });
+          div.style.background = '#fff8e1';
           div.innerHTML = `
-            <img src="${compressed}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #a5d6a7">
+            <img src="${base64}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #ffd54f">
             <div>
-              <div style="font-weight:700;color:#1b5e20">✅ صورة محفوظة (مضغوطة)</div>
-              <div style="color:var(--muted)">${file.name} (${sizeKB} KB → مضغوطة)</div>
+              <div style="font-weight:700;color:#e65100">⏳ محفوظة محلياً — ستُرفع للسحابة عند توفر الإنترنت</div>
+              <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
             </div>`;
-          list.appendChild(div);
-          addEvent('تم رفع صورة مضغوطة: ' + file.name);
         };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-
-    } else {
-      // فيديو أو PDF أو مستندات: حفظ المعلومات فقط (الاسم، الحجم، النوع، التاريخ)
-      window.uploadedFiles[type].push({
-        name: file.name,
-        type: isVideo ? 'video' : isPDF ? 'pdf' : 'document',
-        mimeType: file.type,
-        size: file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB',
-        data: null, // لا يُحفَظ المحتوى (حجمه كبير جداً)
-        uploadedAt: new Date().toISOString()
-      });
-      const icon = isVideo ? '🎥' : isPDF ? '📄' : '📎';
-      const color = isVideo ? '#fff3e0' : '#fce4ec';
-      const textColor = isVideo ? '#e65100' : '#880e4f';
-      const div = document.createElement('div');
-      div.style = `display:flex;align-items:center;gap:8px;padding:8px 10px;background:${color};border-radius:6px;margin-top:6px;font-size:12px`;
-      div.innerHTML = `
-        <span style="font-size:20px">${icon}</span>
-        <div>
-          <div style="font-weight:700;color:${textColor}">${icon} ${isVideo ? 'فيديو مسجَّل' : isPDF ? 'مستند PDF' : 'مستند'} — سيُذكَر في تقرير المركزي</div>
-          <div style="color:var(--muted)">${file.name} (${file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB'})</div>
-          <div style="font-size:10px;color:var(--muted)">ملاحظة: يظهر كمعلومة دليلية في المركزي</div>
-        </div>`;
-      list.appendChild(div);
-      addEvent(`تم تسجيل ${isVideo ? 'فيديو' : 'مستند'}: ${file.name} (${file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB'})`);
-    }
+        reader.readAsDataURL(file);
+      } else {
+        window.uploadedFiles[type].push({ ...fileRecordBase, data: null, _pendingCloudUpload: true });
+        div.style.background = '#fff8e1';
+        div.innerHTML = `
+          <span style="font-size:20px">${icon}</span>
+          <div>
+            <div style="font-weight:700;color:#e65100">⏳ ${file.name} — سيُرفع تلقائياً عند توفر الإنترنت</div>
+            <div style="color:var(--muted)">${sizeLabel} — لا يُغلق المتصفح قبل اكتمال الرفع</div>
+          </div>`;
+      }
+      addEvent(`تعذر رفع ${file.name} حالياً — في قائمة الانتظار`);
+    });
   });
 }
+
+// إعادة محاولة رفع الملفات المعلَّقة فور توفر الإنترنت
+async function retryPendingCloudUploads() {
+  if (!window.pendingCloudUploads.length) return;
+  const queue = window.pendingCloudUploads.splice(0, window.pendingCloudUploads.length);
+  for (const item of queue) {
+    try {
+      const result = await uploadToCloudinary(item.file);
+      const idx = window.uploadedFiles[item.type].findIndex(f => f.name === item.file.name && f._pendingCloudUpload);
+      if (idx > -1) {
+        window.uploadedFiles[item.type][idx] = { ...window.uploadedFiles[item.type][idx], url: result.secure_url, data: null, _pendingCloudUpload: false };
+      }
+      addEvent('تم رفع الملف المعلَّق للسحابة: ' + item.file.name);
+    } catch (e) {
+      window.pendingCloudUploads.push(item); // أعد إدخاله في قائمة الانتظار للمحاولة القادمة
+    }
+  }
+}
+window.addEventListener('online', retryPendingCloudUploads);
+setInterval(() => { if (navigator.onLine) retryPendingCloudUploads(); }, 20000);
 
 
 // ===== VIDEO CALL =====
@@ -1291,32 +1341,39 @@ function confirmSend() {
   const data = collectFormData();
   data._syncStatus = 'pending';
 
-  // الخطوة 1: إرسال البيانات النصية فوراً (بدون الصور) لضمان وصول الاستمارة بسرعة
-  const dataWithoutPhotos = JSON.parse(JSON.stringify(data));
-  if (dataWithoutPhotos.attachments) {
-    // نحتفظ بمعلومات الملفات (الاسم والحجم) لكن نحذف البيانات الثقيلة (Base64)
-    dataWithoutPhotos.attachments.photos = (data.attachments.photos || []).map(p => ({
-      name: p.name, type: p.type, size: p.size, uploadedAt: p.uploadedAt,
-      data: null, // لا نرسل الصورة في هذه المرحلة
-      _pendingUpload: true // علامة أن الصورة ستُرسَل لاحقاً
-    }));
-  }
+  // معظم المرفقات الآن روابط سحابية صغيرة (Cloudinary) فتُرسَل فوراً ضمن الاستمارة.
+  // فقط الملفات الاحتياطية (Base64 — حالة عدم توفر نت لحظة الرفع) تُستثنى من الإرسال الفوري لأنها ثقيلة.
+  const dataFast = JSON.parse(JSON.stringify(data));
+  let heavyCount = 0;
+  ['photos', 'docs'].forEach(key => {
+    if (dataFast.attachments && dataFast.attachments[key]) {
+      dataFast.attachments[key] = dataFast.attachments[key].map(item => {
+        if (item.data) { // ملف احتياطي ثقيل (Base64) لم يُرفع للسحابة بعد
+          heavyCount++;
+          return { name: item.name, type: item.type, size: item.size, uploadedAt: item.uploadedAt, url: item.url || null, data: null, _pendingUpload: true };
+        }
+        return item; // عنصر برابط سحابي صغير — يُرسَل كما هو
+      });
+    }
+  });
 
   document.getElementById('send-status').innerHTML = '🔄 <strong>جاري الإرسال...</strong> يتم إرسال بيانات الاستمارة الآن.';
   document.getElementById('send-status').className = 'alert alert-info';
 
-  SyncEngine.submitForm(dataWithoutPhotos).then(result => {
+  SyncEngine.submitForm(dataFast).then(result => {
     if (result.online) {
-      document.getElementById('send-status').innerHTML = '✅ <strong>تم إرسال الاستمارة بنجاح!</strong> وصلت للمفتش المركزي. جاري إرسال الصور...';
+      document.getElementById('send-status').innerHTML = heavyCount > 0
+        ? '✅ <strong>تم إرسال الاستمارة بنجاح!</strong> وصلت للمفتش المركزي مع كل المرفقات السحابية. جاري إرسال الملفات الاحتياطية المتبقية...'
+        : '✅ <strong>اكتمل الإرسال بالكامل!</strong> الاستمارة وكل المرفقات (صور/فيديو/مستندات) وصلت للمفتش المركزي.';
       document.getElementById('send-status').className = 'alert alert-success';
       addEvent('تم إرسال بيانات الاستمارة للمركزي — رقم: ' + sessionId);
 
-      // الخطوة 2: إرسال الصور بشكل منفصل في الخلفية (بدون إيقاف المفتش)
-      const photos = (data.attachments && data.attachments.photos) ? data.attachments.photos.filter(p => p.data) : [];
-      if (photos.length > 0 && SyncEngine.isFirebaseReady()) {
-        sendPhotosInBackground(sessionId, photos);
-      } else {
-        document.getElementById('send-status').innerHTML = '✅ <strong>تم الإرسال بنجاح!</strong> وصلت الاستمارة فوراً إلى المفتش المركزي.';
+      // إرسال أي ملفات احتياطية (Base64) لم تُرفع للسحابة بعد، بشكل منفصل في الخلفية
+      const heavyPhotos = (data.attachments && data.attachments.photos) ? data.attachments.photos.filter(p => p.data) : [];
+      const heavyDocs = (data.attachments && data.attachments.docs) ? data.attachments.docs.filter(p => p.data) : [];
+      const heavyAll = [...heavyPhotos.map(p => ({ ...p, _key: 'photos' })), ...heavyDocs.map(p => ({ ...p, _key: 'docs' }))];
+      if (heavyAll.length > 0 && SyncEngine.isFirebaseReady()) {
+        sendHeavyFilesInBackground(sessionId, heavyAll);
       }
     } else {
       document.getElementById('send-status').innerHTML = '💾 <strong>تم الحفظ محلياً.</strong> لا يوجد اتصال — سيتم الإرسال تلقائياً فور توفر الشبكة.';
@@ -1327,27 +1384,23 @@ function confirmSend() {
   });
 }
 
-// إرسال الصور في الخلفية تباعاً (صورة واحدة في كل مرة لتخفيف الضغط)
-async function sendPhotosInBackground(sid, photos) {
+// إرسال المرفقات الاحتياطية (Base64) في الخلفية تباعاً — حالة نادرة عندما تفشل السحابة لحظة الرفع
+async function sendHeavyFilesInBackground(sid, files) {
   const statusEl = document.getElementById('send-status');
   let sent = 0;
-  for (const photo of photos) {
+  for (const f of files) {
     try {
       if (typeof db !== 'undefined' && db !== null) {
-        await db.ref('inspections/' + sid + '/attachments/photos/' + sent).set(photo);
+        await db.ref('inspections/' + sid + '/attachments/' + f._key + '/' + sent).set(f);
         sent++;
-        if (statusEl) {
-          statusEl.innerHTML = `✅ <strong>تم الإرسال!</strong> جاري رفع الصور (${sent}/${photos.length})...`;
-        }
+        if (statusEl) statusEl.innerHTML = `✅ <strong>تم الإرسال!</strong> جاري رفع الملفات الاحتياطية (${sent}/${files.length})...`;
       }
     } catch(e) {
-      console.warn('تعذر رفع الصورة:', photo.name, e.message);
+      console.warn('تعذر رفع الملف:', f.name, e.message);
     }
   }
-  if (statusEl) {
-    statusEl.innerHTML = `✅ <strong>اكتمل الإرسال بالكامل!</strong> الاستمارة + ${sent} صورة وصلت للمفتش المركزي.`;
-  }
-  addEvent(`اكتمل رفع الصور: ${sent}/${photos.length} صورة`);
+  if (statusEl) statusEl.innerHTML = `✅ <strong>اكتمل الإرسال بالكامل!</strong> الاستمارة وكل المرفقات وصلت للمفتش المركزي.`;
+  addEvent(`اكتمل رفع الملفات الاحتياطية: ${sent}/${files.length}`);
 }
 
 function downloadJSON() {
