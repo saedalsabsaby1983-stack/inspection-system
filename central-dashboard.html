@@ -441,41 +441,20 @@ textarea.form-control { min-height: 70px; resize: vertical; }
 
 <!-- VIDEO CALL MODAL -->
 <div class="modal-overlay" id="video-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:720px">
     <div class="modal-header">
       <span>📹 مكالمة مع المفتش الفرعي الميداني</span>
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;color:#4fc3f7">⬤ <span id="call-status">جاري الاتصال...</span></span>
+        <span style="font-size:11px;color:#4fc3f7" id="call-status">جاري الاتصال...</span>
         <button class="close-btn" onclick="closeVideoCall()">✕</button>
       </div>
     </div>
-    <div class="modal-body">
-      <div class="video-grid">
-        <div class="video-panel">
-          <video id="remote-video" autoplay playsinline style="display:none"></video>
-          <div id="remote-ph" style="text-align:center;color:rgba(255,255,255,.4)">
-            <div style="font-size:32px">📹</div>
-            <div style="font-size:12px;margin-top:6px">المفتش الفرعي — ميداني</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.3)">في انتظار الاتصال...</div>
-          </div>
-          <div class="video-label">📍 ميداني</div>
-        </div>
-        <div class="video-panel">
-          <video id="local-video" autoplay muted playsinline style="display:none"></video>
-          <div id="local-ph" style="text-align:center;color:rgba(255,255,255,.4)">
-            <div style="font-size:32px">🏛</div>
-            <div style="font-size:12px;margin-top:6px">أنت — المفتش المركزي دمشق</div>
-          </div>
-          <div class="video-label">🏛 المركزي</div>
-        </div>
+    <div class="modal-body" style="padding:0">
+      <div id="call-join-bar" style="display:flex;gap:8px;padding:10px 12px;background:#f5f5f5;border-bottom:1px solid #e0e0e0">
+        <input type="text" id="call-room-input" class="form-control" placeholder="أدخل رقم جلسة المفتش الفرعي (مثل BR-XXXXX)" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="joinCallRoom()">📞 دخول المكالمة</button>
       </div>
-      <div class="call-controls">
-        <button class="call-btn" onclick="toggleMic()" id="btn-mic">🎙️</button>
-        <button class="call-btn" onclick="toggleVid()" id="btn-vid">📷</button>
-        <button class="call-btn" onclick="shareScreen()">🖥️</button>
-        <button class="call-btn end" onclick="closeVideoCall()">📵</button>
-      </div>
-      <div class="call-meta">🔐 DTLS-SRTP مشفرة • ⏱ <span id="call-timer">00:00</span> • 🌐 WebRTC P2P</div>
+      <div id="jitsi-frame-wrap" style="width:100%;height:480px;background:#000"></div>
     </div>
   </div>
 </div>
@@ -512,7 +491,7 @@ textarea.form-control { min-height: 70px; resize: vertical; }
 // ===== DATA =====
 let forms = [];
 let sessionStart = Date.now();
-let callStream = null, callTimer = null, callSecs = 0;
+
 let micOn = true, vidOn = true;
 
 // Timer
@@ -710,7 +689,10 @@ function updateDashboard() {
       <td>${getDate(f)}</td>
       <td>${getClassification(f)}</td>
       <td>${getStatusBadge(f)}</td>
-      <td><button class="btn btn-sm btn-primary" onclick="openReview('${f.sessionId}')">🔍 مراجعة</button></td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="openReview('${f.sessionId}')">🔍 مراجعة</button>
+        <button class="btn btn-sm btn-outline" onclick="openVideoCall('${f.sessionId}')" title="اتصال مرئي مباشر بهذا المفتش">📹</button>
+      </td>
     </tr>
   `).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">لا توجد استمارات بعد</td></tr>';
 }
@@ -761,6 +743,7 @@ function updateIncoming() {
         <button class="btn btn-warning btn-sm" onclick="makeDecision('${f.sessionId}','escalated')">📤 رفع للجهات العليا</button>
         <button class="btn btn-danger btn-sm" onclick="makeDecision('${f.sessionId}','urgent')">⛔ إجراء عاجل</button>
         <button class="btn btn-primary btn-sm" onclick="openReview('${f.sessionId}')">🔍 مراجعة تفصيلية</button>
+        <button class="btn btn-outline btn-sm" onclick="openVideoCall('${f.sessionId}')">📹 اتصال مرئي بهذا المفتش</button>
       </div>
     </div>
   `).join('');
@@ -1352,42 +1335,46 @@ function openFirebaseSetup() {
   alert('⚙️ إعداد Firebase\n\nلربط النظام بقاعدة بيانات Firebase:\n1. أنشئ مشروع Firebase على console.firebase.google.com\n2. أضف config.js بمفاتيح المشروع\n3. فعّل Firestore وAuthentication\n\nالمزامنة التلقائية ستعمل بعد الإعداد.');
 }
 
-// ===== VIDEO CALL =====
-async function openVideoCall() {
+// ===== VIDEO CALL (Jitsi Meet — اتصال حقيقي بغرفة مرتبطة برقم جلسة المفتش الفرعي) =====
+function roomNameFromSession(sid) {
+  const clean = (sid || 'inspection').replace(/[^a-zA-Z0-9]/g, '');
+  return 'syria-labor-inspection-' + clean;
+}
+
+function openVideoCall(sid) {
   document.getElementById('video-modal').classList.add('open');
-  try {
-    callStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    const lv = document.getElementById('local-video');
-    lv.srcObject = callStream; lv.style.display = 'block';
-    document.getElementById('local-ph').style.display = 'none';
-    document.getElementById('call-status').textContent = 'متصل ●';
-  } catch(e) { document.getElementById('call-status').textContent = 'تعذر الاتصال'; }
-  callSecs = 0;
-  callTimer = setInterval(() => {
-    callSecs++;
-    document.getElementById('call-timer').textContent = String(Math.floor(callSecs/60)).padStart(2,'0') + ':' + String(callSecs%60).padStart(2,'0');
-  }, 1000);
+  document.getElementById('call-status').textContent = 'في انتظار رقم الجلسة...';
+  document.getElementById('jitsi-frame-wrap').innerHTML = '';
+  if (sid) {
+    document.getElementById('call-room-input').value = sid;
+    joinCallRoom();
+  } else {
+    document.getElementById('call-room-input').focus();
+  }
+}
+
+function joinCallRoom() {
+  const sid = document.getElementById('call-room-input').value.trim();
+  if (!sid) { alert('أدخل رقم جلسة المفتش الفرعي أولاً (مثل BR-XXXXX) — يظهر في أعلى شاشته أو في جدول الاستمارات الواردة'); return; }
+  const room = roomNameFromSession(sid);
+  document.getElementById('call-status').textContent = 'جاري الاتصال...';
+
+  const wrap = document.getElementById('jitsi-frame-wrap');
+  wrap.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://meet.jit.si/${room}#config.prejoinPageEnabled=false&config.disableDeepLinking=true&userInfo.displayName="المفتش المركزي - دمشق"`;
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = '0';
+  iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay';
+  wrap.appendChild(iframe);
+
+  setTimeout(() => { document.getElementById('call-status').textContent = 'متصل ●  — غرفة: ' + sid; }, 2500);
 }
 
 function closeVideoCall() {
   document.getElementById('video-modal').classList.remove('open');
-  if (callStream) { callStream.getTracks().forEach(t => t.stop()); callStream = null; }
-  if (callTimer) clearInterval(callTimer);
-  document.getElementById('local-video').style.display = 'none';
-  document.getElementById('local-ph').style.display = 'flex';
-}
-
-function toggleMic() {
-  if (!callStream) return; micOn = !micOn;
-  callStream.getAudioTracks().forEach(t => t.enabled = micOn);
-  document.getElementById('btn-mic').textContent = micOn ? '🎙️' : '🔇';
-}
-function toggleVid() {
-  if (!callStream) return; vidOn = !vidOn;
-  callStream.getVideoTracks().forEach(t => t.enabled = vidOn);
-}
-async function shareScreen() {
-  try { const s = await navigator.mediaDevices.getDisplayMedia({video:true}); document.getElementById('local-video').srcObject = s; } catch(e) {}
+  document.getElementById('jitsi-frame-wrap').innerHTML = ''; // إغلاق الإطار يوقف الكاميرا والمايكروفون فوراً
 }
 
 // Register Service Worker for offline PWA capability
