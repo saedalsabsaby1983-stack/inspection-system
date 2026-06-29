@@ -1245,7 +1245,7 @@ function openVideoCall() {
   const wrap = document.getElementById('jitsi-frame-wrap');
   wrap.innerHTML = '';
   const iframe = document.createElement('iframe');
-  iframe.src = `https://meet.jit.si/${room}#config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&userInfo.displayName="مفتش فرعي ${(inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : ''}"`;
+  iframe.src = `https://meet.ffmuc.net/${room}#config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&userInfo.displayName="مفتش فرعي ${(inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : ''}"`;
   iframe.style.width = '100%';
   iframe.style.height = '100%';
   iframe.style.border = '0';
