@@ -796,21 +796,19 @@ textarea.form-control { min-height: 80px; resize: vertical; }
   </div>
 </div>
 
-<!-- VIDEO CALL MODAL (Jitsi Meet — اتصال حقيقي بين الفرعي والمركزي) -->
+<!-- VIDEO CALL MODAL (Jitsi Meet — اتصال حقيقي بين الفرعي والمركزي، يُفتح بتبويب مستقل) -->
 <div class="modal-overlay" id="video-modal">
-  <div class="modal" style="max-width:720px">
+  <div class="modal" style="max-width:480px">
     <div class="modal-header">
       <span>📹 مكالمة مباشرة مع المفتش المركزي</span>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;color:#4fc3f7" id="call-status">جاري الاتصال...</span>
-        <button class="close-btn" onclick="closeVideoCall()">✕</button>
-      </div>
+      <button class="close-btn" onclick="closeVideoCall()">✕</button>
     </div>
-    <div class="modal-body" style="padding:0">
-      <div id="jitsi-frame-wrap" style="width:100%;height:480px;background:#000"></div>
-      <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
-        🔐 اتصال مباشر مشفّر عبر Jitsi Meet • رقم الغرفة مرتبط برقم هذه الجلسة (<span id="call-room-id">—</span>) — أعطِ المركزي رقم الجلسة هذا للدخول لنفس المكالمة
-      </div>
+    <div class="modal-body" style="text-align:center;padding:30px 20px">
+      <div style="font-size:48px;margin-bottom:10px">📹</div>
+      <div style="font-size:14px;color:var(--text);margin-bottom:6px">رقم غرفة المكالمة لهذه الجلسة:</div>
+      <div style="font-size:20px;font-weight:800;color:var(--primary);background:#f0f4ff;border-radius:8px;padding:10px;margin-bottom:18px" id="call-room-id">—</div>
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px" onclick="joinVideoCall()">📞 دخول المكالمة الآن</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:14px">🔐 ستُفتح المكالمة في تبويب مستقل بالمتصفح (خدمة Jitsi Meet المجانية المشفّرة) • أعطِ المركزي رقم الجلسة أعلاه للدخول لنفس المكالمة</div>
     </div>
   </div>
 </div>
@@ -1238,28 +1236,20 @@ function getCallRoomName() {
 
 function openVideoCall() {
   document.getElementById('video-modal').classList.add('open');
-  const room = getCallRoomName();
   document.getElementById('call-room-id').textContent = sessionId || '—';
-  document.getElementById('call-status').textContent = 'جاري الاتصال...';
+  addEvent('فتح نافذة المكالمة المرئية — غرفة: ' + (sessionId || ''));
+}
 
-  const wrap = document.getElementById('jitsi-frame-wrap');
-  wrap.innerHTML = '';
-  const iframe = document.createElement('iframe');
-  iframe.src = `https://meet.ffmuc.net/${room}#config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&userInfo.displayName="مفتش فرعي ${(inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : ''}"`;
-  iframe.style.width = '100%';
-  iframe.style.height = '100%';
-  iframe.style.border = '0';
-  iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay';
-  wrap.appendChild(iframe);
-
-  setTimeout(() => { document.getElementById('call-status').textContent = 'متصل ●'; }, 2500);
-  addEvent('بدء مكالمة مرئية مع المفتش المركزي — غرفة: ' + (sessionId || ''));
+function joinVideoCall() {
+  const room = getCallRoomName();
+  const name = encodeURIComponent('مفتش فرعي ' + ((inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : ''));
+  const url = `https://meet.ffmuc.net/${room}#config.prejoinPageEnabled=false&userInfo.displayName="${name}"`;
+  window.open(url, '_blank');
+  addEvent('دخول المكالمة المرئية — غرفة: ' + (sessionId || ''));
 }
 
 function closeVideoCall() {
   document.getElementById('video-modal').classList.remove('open');
-  document.getElementById('jitsi-frame-wrap').innerHTML = ''; // إغلاق الإطار يوقف الكاميرا والمايكروفون فوراً
-  addEvent('انتهاء المكالمة المرئية');
 }
 
 // ===== COLLECT DATA =====
