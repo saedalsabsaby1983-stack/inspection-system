@@ -265,6 +265,7 @@ textarea.form-control { min-height: 70px; resize: vertical; }
     <button class="sidebar-item" onclick="showPanel('incoming')">📨 <span>الاستمارات الواردة</span></button>
     <button class="sidebar-item" onclick="showPanel('review')">🔍 <span>مراجعة الاستمارة</span></button>
     <button class="sidebar-item" onclick="showPanel('stats')">📈 <span>التقارير الإحصائية</span></button>
+    <button class="sidebar-item" onclick="showPanel('periodic')">🗓️ <span>التقارير الدورية والإجمالية</span></button>
     <hr class="sidebar-divider">
     <button class="sidebar-item" onclick="openImport()">📥 <span>استيراد JSON</span></button>
     <button class="sidebar-item" onclick="exportAll()">📤 <span>تصدير الكل</span></button>
@@ -436,6 +437,72 @@ textarea.form-control { min-height: 70px; resize: vertical; }
       </div>
     </div>
 
+    <!-- PERIODIC REPORTS PANEL -->
+    <div id="panel-periodic" class="panel">
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span>🗓️</span><h3>التقارير الدورية والإجمالية — جاهزة فوراً بدون أي إعداد</h3></div>
+        <div class="card-body">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">تُحسَب هذه التقارير تلقائياً من كل الاستمارات الواردة، وتُحدَّث لحظياً مع كل استمارة جديدة. اضغط "تصدير Excel شامل" أدناه للحصول على ملف واحد يضم كل الجداول (شهري + ربعي + سنوي + محافظات + إجمالي).</div>
+          <div class="btn-row">
+            <button class="btn btn-accent btn-sm" onclick="exportPeriodicExcel()">📦 تصدير Excel شامل لكل التقارير الدورية</button>
+            <button class="btn btn-outline btn-sm" onclick="updatePeriodicPanel()">🔄 تحديث الآن</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- الإجمالي العام -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span>🌍</span><h3>الإجمالي العام (كل الفترات وكل المحافظات)</h3></div>
+        <div class="card-body">
+          <div class="stats-grid" id="periodic-overall-grid"></div>
+        </div>
+      </div>
+
+      <!-- حسب المحافظة -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span>📍</span><h3>التقرير الإجمالي حسب المحافظة</h3></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>المحافظة</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
+            <tbody id="periodic-province-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- التقرير الشهري -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span>📅</span><h3>التقرير الشهري (كل شهر على حدة)</h3></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>الشهر</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
+            <tbody id="periodic-month-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- التقرير الربعي -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span>📆</span><h3>التقرير الربعي (كل ربع سنة)</h3></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>الربع</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
+            <tbody id="periodic-quarter-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- التقرير السنوي -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span>🗓️</span><h3>التقرير السنوي (كل سنة)</h3></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>السنة</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
+            <tbody id="periodic-year-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -589,10 +656,11 @@ function showPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   document.querySelectorAll('.sidebar-item').forEach(b => {
-    b.classList.toggle('active', b.textContent.includes({dashboard:'لوحة',tracking:'تتبع',incoming:'الاستمارات',review:'مراجعة',stats:'التقارير'}[name]||''));
+    b.classList.toggle('active', b.textContent.includes({dashboard:'لوحة',tracking:'تتبع',incoming:'الاستمارات',review:'مراجعة',stats:'التقارير الإحصائية',periodic:'الدورية'}[name]||''));
   });
   updateAll();
   if (name === 'tracking') updateTrackingPanel();
+  if (name === 'periodic') updatePeriodicPanel();
 }
 
 // ===== NOTIFICATION =====
@@ -609,6 +677,7 @@ function updateAll() {
   updateIncoming();
   updateStats();
   updateStatsPanel();
+  updatePeriodicPanel();
   document.getElementById('notif-count').textContent = forms.filter(f => f._status === 'received').length;
 }
 
@@ -1038,6 +1107,134 @@ function updateStats() {
   // nothing extra
 }
 
+// ===== PERIODIC REPORTS (شهري / ربعي / سنوي / حسب المحافظة / إجمالي عام) =====
+function periodicGroupStats(group) {
+  const total = group.length;
+  const ok = group.filter(f => f.step7 && f.step7.classification === 'ok').length;
+  const viol = group.filter(f => f.step7 && f.step7.classification && f.step7.classification !== 'ok').length;
+  const danger = group.filter(f => f.step7 && f.step7.classification === 'danger').length;
+  const rate = total ? Math.round((ok / total) * 100) : 0;
+  return { total, ok, viol, danger, rate };
+}
+
+function getQuarterLabel(dateStr) {
+  if (!dateStr || dateStr === '—') return null;
+  const parts = dateStr.split('-');
+  if (parts.length < 2) return null;
+  const year = parts[0], month = parseInt(parts[1], 10);
+  const q = Math.ceil(month / 3);
+  return `${year} — الربع ${q}`;
+}
+function getMonthLabel(dateStr) {
+  if (!dateStr || dateStr === '—') return null;
+  const parts = dateStr.split('-');
+  if (parts.length < 2) return null;
+  const monthNames = ['يناير كانون الثاني','فبراير شباط','مارس آذار','أبريل نيسان','مايو أيار','يونيو حزيران','يوليو تموز','أغسطس آب','سبتمبر أيلول','أكتوبر تشرين الأول','نوفمبر تشرين الثاني','ديسمبر كانون الأول'];
+  const m = parseInt(parts[1], 10);
+  return `${parts[0]}-${parts[1]} (${monthNames[m-1] || ''})`;
+}
+function getYearLabel(dateStr) {
+  if (!dateStr || dateStr === '—') return null;
+  return dateStr.split('-')[0];
+}
+
+function buildGroupedReport(keyFn) {
+  const groups = {};
+  forms.forEach(f => {
+    const key = keyFn(getDate(f));
+    if (!key) return;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(f);
+  });
+  return Object.keys(groups).sort().map(key => ({ key, stats: periodicGroupStats(groups[key]) }));
+}
+
+function buildProvinceReport() {
+  const groups = {};
+  forms.forEach(f => {
+    const p = getProvince(f);
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(f);
+  });
+  return Object.keys(groups).sort().map(key => ({ key, stats: periodicGroupStats(groups[key]) }));
+}
+
+function renderPeriodicTable(elId, rows) {
+  const el = document.getElementById(elId);
+  if (!rows.length) { el.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">لا توجد بيانات بعد</td></tr>'; return; }
+  el.innerHTML = rows.map(r => `
+    <tr>
+      <td style="font-weight:700">${r.key}</td>
+      <td>${r.stats.total}</td>
+      <td style="color:#2e7d32">${r.stats.ok}</td>
+      <td style="color:#e65100">${r.stats.viol}</td>
+      <td style="color:#c62828">${r.stats.danger}</td>
+      <td>${r.stats.rate}%</td>
+    </tr>
+  `).join('');
+}
+
+function updatePeriodicPanel() {
+  const overall = periodicGroupStats(forms);
+  document.getElementById('periodic-overall-grid').innerHTML = `
+    <div class="stat-box"><div class="stat-num">${overall.total}</div><div class="stat-label">إجمالي الزيارات (كل الفترات)</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#2e7d32">${overall.ok}</div><div class="stat-label">منشآت مستوفية</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#e65100">${overall.viol}</div><div class="stat-label">منشآت مخالفة</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#c62828">${overall.danger}</div><div class="stat-label">حالات خطر داهم</div></div>
+    <div class="stat-box"><div class="stat-num">${overall.rate}%</div><div class="stat-label">نسبة الامتثال العامة</div></div>
+    <div class="stat-box"><div class="stat-num">${new Set(forms.map(getProvince)).size}</div><div class="stat-label">عدد المحافظات المُفتَّشة</div></div>
+  `;
+
+  renderPeriodicTable('periodic-province-table', buildProvinceReport());
+  renderPeriodicTable('periodic-month-table', buildGroupedReport(getMonthLabel));
+  renderPeriodicTable('periodic-quarter-table', buildGroupedReport(getQuarterLabel));
+  renderPeriodicTable('periodic-year-table', buildGroupedReport(getYearLabel));
+}
+
+function reportRowsToSheetData(rows, keyHeader) {
+  return rows.map(r => ({
+    [keyHeader]: r.key,
+    'إجمالي الزيارات': r.stats.total,
+    'مستوفية': r.stats.ok,
+    'مخالفة': r.stats.viol,
+    'خطر داهم': r.stats.danger,
+    'نسبة الامتثال %': r.stats.rate
+  }));
+}
+
+function exportPeriodicExcel() {
+  const wb = XLSX.utils.book_new();
+
+  const overall = periodicGroupStats(forms);
+  const wsOverall = XLSX.utils.json_to_sheet([{
+    'إجمالي الزيارات': overall.total,
+    'منشآت مستوفية': overall.ok,
+    'منشآت مخالفة': overall.viol,
+    'حالات خطر داهم': overall.danger,
+    'نسبة الامتثال العامة %': overall.rate,
+    'عدد المحافظات المُفتَّشة': new Set(forms.map(getProvince)).size,
+    'تاريخ إصدار التقرير': new Date().toLocaleString('ar-SA')
+  }]);
+  XLSX.utils.book_append_sheet(wb, wsOverall, 'الإجمالي العام');
+
+  const wsProv = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildProvinceReport(), 'المحافظة'));
+  XLSX.utils.book_append_sheet(wb, wsProv, 'حسب المحافظة');
+
+  const wsMonth = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildGroupedReport(getMonthLabel), 'الشهر'));
+  XLSX.utils.book_append_sheet(wb, wsMonth, 'التقرير الشهري');
+
+  const wsQuarter = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildGroupedReport(getQuarterLabel), 'الربع'));
+  XLSX.utils.book_append_sheet(wb, wsQuarter, 'التقرير الربعي');
+
+  const wsYear = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildGroupedReport(getYearLabel), 'السنة'));
+  XLSX.utils.book_append_sheet(wb, wsYear, 'التقرير السنوي');
+
+  const wsAll = XLSX.utils.json_to_sheet(forms.map(formToRow));
+  XLSX.utils.book_append_sheet(wb, wsAll, 'كل البيانات التفصيلية');
+
+  downloadWorkbook(wb, `تقرير_دوري_شامل_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 function updateStatsPanel() {
   populateInspectorFilter();
   const filtered = getFilteredForms();
@@ -1333,7 +1530,8 @@ function openFirebaseSetup() {
 
 // ===== VIDEO CALL (Jitsi Meet — اتصال حقيقي بغرفة مرتبطة برقم جلسة المفتش الفرعي) =====
 function roomNameFromSession(sid) {
-  const clean = (sid || 'inspection').replace(/[^a-zA-Z0-9]/g, '');
+  // تطبيع الأحرف لحروف كبيرة دائماً لتفادي اختلاف الغرفة بسبب فرق كتابة الأحرف (كبيرة/صغيرة)
+  const clean = (sid || 'inspection').toUpperCase().replace(/[^A-Z0-9]/g, '');
   return 'syria-labor-inspection-' + clean;
 }
 
