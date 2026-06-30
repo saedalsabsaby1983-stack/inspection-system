@@ -345,10 +345,34 @@ textarea.form-control { min-height: 80px; resize: vertical; }
 .setup-body { padding: 18px 20px; }
 
 /* Responsive */
+.mobile-menu-btn { display: none; }
+.mobile-sidebar-backdrop { display: none; }
 @media (max-width: 700px) {
   .form-grid { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: 1fr 1fr; }
   .sidebar { display: none; }
+  .sidebar.mobile-open {
+    display: flex !important;
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 78vw; max-width: 300px;
+    z-index: 9999;
+    box-shadow: -6px 0 24px rgba(0,0,0,.4);
+    overflow-y: auto;
+  }
+  .mobile-menu-btn {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; left: 16px; bottom: 16px; z-index: 9000;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--primary, #0d2137); color: #fff;
+    font-size: 22px; border: none; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  }
+  .mobile-sidebar-backdrop.open {
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9998;
+  }
+  .mobile-sidebar-close {
+    display: block !important; width: 100%; text-align: left; padding: 10px 14px;
+    background: rgba(255,255,255,.08); color: #fff; border: none; font-size: 13px;
+  }
 }
 </style>
 </head>
@@ -433,9 +457,12 @@ textarea.form-control { min-height: 80px; resize: vertical; }
 </div>
 
 <!-- LAYOUT -->
+<button class="mobile-menu-btn" onclick="openMobileSidebar()" title="القائمة والإجراءات">☰</button>
+<div class="mobile-sidebar-backdrop" id="mobile-sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 <div class="app-layout">
   <!-- SIDEBAR -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
+    <button class="mobile-sidebar-close" style="display:none" onclick="closeMobileSidebar()">✕ إغلاق القائمة</button>
     <div class="sidebar-section">
       <div class="sidebar-label">الاستمارة</div>
       <button class="sidebar-item" onclick="goStep(1)">📋 <span>بيانات الزيارة</span></button>
@@ -1232,6 +1259,16 @@ function getCallRoomName() {
   // غرفة فريدة لكل جلسة تفتيش — نفس الرقم يستخدمه المركزي للدخول لنفس المكالمة
   const clean = (sessionId || 'inspection').replace(/[^a-zA-Z0-9]/g, '');
   return 'syria-labor-inspection-' + clean;
+}
+
+// ===== MOBILE SIDEBAR (القائمة الجانبية على الهاتف) =====
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('mobile-sidebar-backdrop').classList.add('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('mobile-sidebar-backdrop').classList.remove('open');
 }
 
 function openVideoCall() {
