@@ -1257,7 +1257,8 @@ let jitsiApi = null;
 
 function getCallRoomName() {
   // غرفة فريدة لكل جلسة تفتيش — نفس الرقم يستخدمه المركزي للدخول لنفس المكالمة
-  const clean = (sessionId || 'inspection').replace(/[^a-zA-Z0-9]/g, '');
+  // تطبيع الأحرف لحروف كبيرة دائماً لتفادي اختلاف الغرفة بسبب فرق كتابة الأحرف (كبيرة/صغيرة)
+  const clean = (sessionId || 'inspection').toUpperCase().replace(/[^A-Z0-9]/g, '');
   return 'syria-labor-inspection-' + clean;
 }
 
