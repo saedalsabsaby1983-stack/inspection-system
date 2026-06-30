@@ -508,18 +508,34 @@ textarea.form-control { min-height: 70px; resize: vertical; }
   </div>
 </div>
 
-<!-- VIDEO CALL MODAL -->
+<!-- VIDEO CALL MODAL (WebRTC حقيقي — إشارة عبر Firebase + STUN/TURN مجاني يعمل على المنفذ 443) -->
 <div class="modal-overlay" id="video-modal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal" style="max-width:720px">
     <div class="modal-header">
       <span>📹 مكالمة مع المفتش الفرعي الميداني</span>
-      <button class="close-btn" onclick="closeVideoCall()">✕</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;color:#4fc3f7" id="call-status">—</span>
+        <button class="close-btn" onclick="closeVideoCall()">✕</button>
+      </div>
     </div>
-    <div class="modal-body" style="text-align:center;padding:24px 20px">
-      <div style="font-size:48px;margin-bottom:10px">📹</div>
-      <input type="text" id="call-room-input" class="form-control" placeholder="رقم جلسة المفتش الفرعي (مثل BR-XXXXX)" style="width:100%;text-align:center;font-size:15px;font-weight:700;padding:10px;margin-bottom:14px">
-      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px" onclick="joinCallRoom()">📞 دخول المكالمة الآن</button>
-      <div style="font-size:11px;color:var(--muted);margin-top:14px">🔐 ستُفتح المكالمة في تبويب مستقل بالمتصفح (خدمة Jitsi Meet المجانية المشفّرة) — أدخل نفس رقم الجلسة الذي يظهر عند المفتش الفرعي</div>
+    <div class="modal-body" style="padding:0">
+      <div id="call-join-bar" style="display:flex;gap:8px;padding:10px 12px;background:#f5f5f5;border-bottom:1px solid #e0e0e0">
+        <input type="text" id="call-room-input" class="form-control" placeholder="رقم جلسة المفتش الفرعي (مثل BR-XXXXX)" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="joinCallRoom()">📞 اتصال</button>
+      </div>
+      <div style="position:relative;width:100%;height:420px;background:#000;overflow:hidden">
+        <video id="remote-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>
+        <video id="local-video" autoplay muted playsinline style="position:absolute;bottom:10px;left:10px;width:110px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #fff;background:#222;z-index:2"></video>
+        <div id="call-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-size:13px;flex-direction:column;gap:8px;text-align:center;padding:20px">
+          <div style="font-size:40px">📹</div>
+          <div>أدخل رقم جلسة المفتش الفرعي أعلاه واضغط "اتصال"</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;gap:14px;padding:14px;background:#1a1a1a">
+        <button class="call-btn" onclick="toggleMic()" id="btn-mic" title="كتم/تشغيل الصوت">🎙️</button>
+        <button class="call-btn" onclick="toggleCam()" id="btn-cam" title="تشغيل/إيقاف الكاميرا">📷</button>
+        <button class="call-btn end" onclick="closeVideoCall()" title="إنهاء المكالمة">📵</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1574,11 +1590,52 @@ function openFirebaseSetup() {
   alert('⚙️ إعداد Firebase\n\nلربط النظام بقاعدة بيانات Firebase:\n1. أنشئ مشروع Firebase على console.firebase.google.com\n2. أضف config.js بمفاتيح المشروع\n3. فعّل Firestore وAuthentication\n\nالمزامنة التلقائية ستعمل بعد الإعداد.');
 }
 
-// ===== VIDEO CALL (Jitsi Meet — اتصال حقيقي بغرفة مرتبطة برقم جلسة المفتش الفرعي) =====
+// ===== VIDEO CALL (WebRTC حقيقي — إشارة عبر Firebase + STUN/TURN مجاني) =====
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+  ]
+};
+let pc = null, localStream = null, callRoomRef = null;
+let micEnabled = true, camEnabled = true, pendingIceCandidates = [];
+
 function roomNameFromSession(sid) {
   // تطبيع الأحرف لحروف كبيرة دائماً لتفادي اختلاف الغرفة بسبب فرق كتابة الأحرف (كبيرة/صغيرة)
-  const clean = (sid || 'inspection').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return 'syria-labor-inspection-' + clean;
+  return (sid || 'inspection').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+async function getLocalStream() {
+  if (localStream) return localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  document.getElementById('local-video').srcObject = localStream;
+  return localStream;
+}
+
+function setupPeerConnection() {
+  pc = new RTCPeerConnection(ICE_SERVERS);
+  const remoteVideo = document.getElementById('remote-video');
+  const remoteStream = new MediaStream();
+  remoteVideo.srcObject = remoteStream;
+  pc.ontrack = (event) => {
+    event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+    document.getElementById('call-placeholder').style.display = 'none';
+    document.getElementById('call-status').textContent = 'متصل ●';
+  };
+  pc.onconnectionstatechange = () => {
+    if (!pc) return;
+    if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+      document.getElementById('call-status').textContent = 'انقطع الاتصال';
+    }
+  };
+  return pc;
+}
+
+function flushPendingCandidates() {
+  pendingIceCandidates.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
+  pendingIceCandidates = [];
 }
 
 function openVideoCall(sid) {
@@ -1592,16 +1649,82 @@ function openVideoCall(sid) {
   }
 }
 
-function joinCallRoom() {
-  const sid = document.getElementById('call-room-input').value.trim();
-  if (!sid) { alert('أدخل رقم جلسة المفتش الفرعي أولاً (مثل BR-XXXXX) — يظهر في أعلى شاشته أو في جدول الاستمارات الواردة'); return; }
-  const room = roomNameFromSession(sid);
-  const url = `https://meet.ffmuc.net/${room}#config.prejoinPageEnabled=false&userInfo.displayName="المفتش المركزي - دمشق"`;
-  window.open(url, '_blank');
+async function joinCallRoom() {
+  const sidRaw = document.getElementById('call-room-input').value.trim();
+  if (!sidRaw) { alert('أدخل رقم جلسة المفتش الفرعي أولاً (مثل BR-XXXXX) — يظهر في أعلى شاشته أو في جدول الاستمارات الواردة'); return; }
+  if (typeof db === 'undefined' || db === null) { alert('قاعدة البيانات غير متصلة حالياً'); return; }
+
+  document.getElementById('call-status').textContent = 'جاري الاتصال...';
+  document.getElementById('call-placeholder').style.display = 'flex';
+
+  try {
+    await getLocalStream();
+  } catch(e) {
+    document.getElementById('call-status').textContent = 'تعذر الوصول للكاميرا/المايكروفون';
+    return;
+  }
+
+  pendingIceCandidates = [];
+  const roomId = roomNameFromSession(sidRaw);
+  callRoomRef = db.ref('calls/' + roomId);
+  await callRoomRef.remove().catch(()=>{}); // تنظيف أي بقايا من مكالمة سابقة بنفس الرقم
+  setupPeerConnection();
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) callRoomRef.child('callerCandidates').push(event.candidate.toJSON());
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await callRoomRef.child('offer').set({ type: offer.type, sdp: offer.sdp });
+
+  callRoomRef.child('answer').on('value', async (snap) => {
+    const answer = snap.val();
+    if (!answer || !pc || pc.currentRemoteDescription) return;
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      flushPendingCandidates();
+    } catch(e) { console.warn('خطأ في استقبال رد الاتصال:', e.message); }
+  });
+
+  callRoomRef.child('calleeCandidates').on('child_added', (snap) => {
+    const data = snap.val();
+    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+      pc.addIceCandidate(new RTCIceCandidate(data)).catch(()=>{});
+    } else {
+      pendingIceCandidates.push(data);
+    }
+  });
 }
 
 function closeVideoCall() {
   document.getElementById('video-modal').classList.remove('open');
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (callRoomRef) {
+    callRoomRef.child('answer').off();
+    callRoomRef.child('calleeCandidates').off();
+    callRoomRef = null;
+  }
+  pendingIceCandidates = [];
+  document.getElementById('call-placeholder').style.display = 'flex';
+  document.getElementById('call-status').textContent = '—';
+  document.getElementById('local-video').srcObject = null;
+  document.getElementById('remote-video').srcObject = null;
+}
+
+function toggleMic() {
+  if (!localStream) return;
+  micEnabled = !micEnabled;
+  localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+  document.getElementById('btn-mic').textContent = micEnabled ? '🎙️' : '🔇';
+}
+function toggleCam() {
+  if (!localStream) return;
+  camEnabled = !camEnabled;
+  localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
+  document.getElementById('btn-cam').textContent = camEnabled ? '📷' : '📷🚫';
 }
 
 // Register Service Worker for offline PWA capability
