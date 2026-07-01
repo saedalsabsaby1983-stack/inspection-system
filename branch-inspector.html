@@ -1291,18 +1291,25 @@ async function getLocalStream() {
 function setupPeerConnection() {
   pc = new RTCPeerConnection(ICE_SERVERS);
   const remoteVideo = document.getElementById('remote-video');
-  const remoteStream = new MediaStream();
-  remoteVideo.srcObject = remoteStream;
   pc.ontrack = (event) => {
-    event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+    if (event.streams && event.streams[0]) {
+      remoteVideo.srcObject = event.streams[0];
+    } else {
+      // fallback: add track to existing stream
+      if (!remoteVideo.srcObject) remoteVideo.srcObject = new MediaStream();
+      remoteVideo.srcObject.addTrack(event.track);
+    }
     document.getElementById('call-placeholder').style.display = 'none';
     document.getElementById('call-status').textContent = 'متصل ●';
   };
   pc.onconnectionstatechange = () => {
     if (!pc) return;
-    if (['disconnected','failed','closed'].includes(pc.connectionState)) {
-      document.getElementById('call-status').textContent = 'انقطع الاتصال';
-    }
+    const state = pc.connectionState;
+    const statusEl = document.getElementById('call-status');
+    if (state === 'connected') { statusEl.textContent = 'متصل ●'; document.getElementById('call-placeholder').style.display = 'none'; }
+    if (state === 'connecting') statusEl.textContent = 'جاري الاتصال...';
+    if (state === 'failed') { statusEl.textContent = 'فشل الاتصال — يُعاد المحاولة...'; pc.restartIce && pc.restartIce(); }
+    if (state === 'disconnected') statusEl.textContent = 'انقطع الاتصال';
   };
   return pc;
 }
