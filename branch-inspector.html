@@ -1266,14 +1266,23 @@ setInterval(() => { if (navigator.onLine) retryPendingCloudUploads(); }, 20000);
 
 
 // ===== VIDEO CALL (WebRTC حقيقي — إشارة عبر Firebase + STUN/TURN مجاني) =====
-const ICE_SERVERS = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-  ]
-};
+// TURN credentials مُجلَبة ديناميكياً من Metered عند كل مكالمة لضمان أحدث بيانات اعتماد
+const METERED_API_KEY = 'VpmAL57-M7Ww5cEf69ZNm7AFmH_gew5tLQiaNA0TE5zHlul.5';
+const METERED_APP_DOMAIN = 'inspection.metered.live';
+
+async function getIceServers() {
+  try {
+    const res = await fetch(`https://${METERED_APP_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`);
+    if (!res.ok) throw new Error('فشل جلب بيانات TURN');
+    return await res.json(); // Metered يُعيد مصفوفة IceServer مباشرة
+  } catch (e) {
+    console.warn('تعذر جلب TURN من Metered، استخدام STUN احتياطي:', e.message);
+    return [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ];
+  }
+}
 let pc = null, localStream = null, callRoomRef = null;
 let micEnabled = true, camEnabled = true, pendingIceCandidates = [];
 
@@ -1288,8 +1297,8 @@ async function getLocalStream() {
   return localStream;
 }
 
-function setupPeerConnection() {
-  pc = new RTCPeerConnection(ICE_SERVERS);
+async function setupPeerConnection() {
+  pc = new RTCPeerConnection({ iceServers: await getIceServers() });
   const remoteVideo = document.getElementById('remote-video');
   pc.ontrack = (event) => {
     if (event.streams && event.streams[0]) {
@@ -1342,7 +1351,7 @@ async function openVideoCall() {
   pendingIceCandidates = [];
   const roomId = getCallRoomId();
   callRoomRef = db.ref('calls/' + roomId);
-  setupPeerConnection();
+  await setupPeerConnection();
   localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
   pc.onicecandidate = (event) => {
