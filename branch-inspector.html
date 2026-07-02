@@ -1273,15 +1273,20 @@ const METERED_APP_DOMAIN = 'inspection.metered.live';
 async function getIceServers() {
   try {
     const res = await fetch(`https://${METERED_APP_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`);
-    if (!res.ok) throw new Error('فشل جلب بيانات TURN');
-    return await res.json(); // Metered يُعيد مصفوفة IceServer مباشرة
-  } catch (e) {
-    console.warn('تعذر جلب TURN من Metered، استخدام STUN احتياطي:', e.message);
-    return [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ];
-  }
+    if (res.ok) {
+      const servers = await res.json();
+      document.getElementById('call-status').textContent = 'جاري الاتصال... (TURN ✅)';
+      return servers;
+    }
+  } catch (e) { console.warn('Metered fetch failed:', e.message); }
+  // احتياطي: TCP/443 فقط (لا يُحجب حتى في الشبكات المقيّدة)
+  document.getElementById('call-status').textContent = 'جاري الاتصال... (وضع TCP/443)';
+  return [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+  ];
 }
 let pc = null, localStream = null, callRoomRef = null;
 let micEnabled = true, camEnabled = true, pendingIceCandidates = [];
@@ -1298,7 +1303,8 @@ async function getLocalStream() {
 }
 
 async function setupPeerConnection() {
-  pc = new RTCPeerConnection({ iceServers: await getIceServers() });
+  const iceServers = await getIceServers();
+  pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: 'relay' });
   const remoteVideo = document.getElementById('remote-video');
   pc.ontrack = (event) => {
     if (event.streams && event.streams[0]) {
