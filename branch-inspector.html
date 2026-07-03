@@ -1297,9 +1297,39 @@ function getCallRoomId() {
 
 async function getLocalStream() {
   if (localStream) return localStream;
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  document.getElementById('local-video').srcObject = localStream;
-  return localStream;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('local-video').srcObject = localStream;
+    // إخفاء رسالة طلب الإذن إن ظهرت
+    const permBox = document.getElementById('cam-permission-box');
+    if (permBox) permBox.style.display = 'none';
+    return localStream;
+  } catch(e) {
+    // الكاميرا مرفوضة — نعرض تعليمات واضحة داخل النافذة
+    document.getElementById('call-wait-text').innerHTML = `
+      <div id="cam-permission-box" style="background:#b71c1c;color:#fff;border-radius:8px;padding:12px;margin:10px;font-size:13px;line-height:1.7;text-align:right">
+        ⚠️ <strong>يجب السماح بالكاميرا والمايكروفون</strong><br><br>
+        📱 <strong>على الهاتف (Chrome):</strong><br>
+        1. اضغط على أيقونة 🔒 أو النقاط الثلاث ⋮ في شريط العنوان<br>
+        2. اختر <strong>"Site settings"</strong> أو <strong>"إعدادات الموقع"</strong><br>
+        3. فعّل <strong>Camera</strong> و <strong>Microphone</strong><br>
+        4. أعد تحميل الصفحة ثم افتح المكالمة مجدداً<br><br>
+        <button onclick="retryCamera()" style="background:#fff;color:#b71c1c;border:none;padding:8px 18px;border-radius:6px;font-weight:bold;font-size:13px;cursor:pointer;width:100%">🔄 إعادة المحاولة بعد السماح</button>
+      </div>`;
+    document.getElementById('call-status').textContent = '⚠️ الكاميرا مرفوضة';
+    throw e;
+  }
+}
+
+async function retryCamera() {
+  document.getElementById('call-wait-text').textContent = 'جاري طلب إذن الكاميرا...';
+  try {
+    await getLocalStream();
+    document.getElementById('call-status').textContent = 'الكاميرا جاهزة ✅ — أعد الاتصال';
+    document.getElementById('call-wait-text').textContent = 'الكاميرا جاهزة. أغلق هذه النافذة وافتح المكالمة من جديد.';
+  } catch(e) {
+    document.getElementById('call-wait-text').textContent = 'لا يزال مرفوضاً — اتبع التعليمات أعلاه ثم اضغط "إعادة المحاولة" مجدداً';
+  }
 }
 
 async function setupPeerConnection() {
@@ -1357,6 +1387,18 @@ async function openVideoCall() {
   pendingIceCandidates = [];
   const roomId = getCallRoomId();
   callRoomRef = db.ref('calls/' + roomId);
+
+  // 📢 إشعار المركزي فوراً بوجود مكالمة واردة (يُخزَّن في Firebase ليستقبله المركزي لحظياً)
+  await db.ref('incomingCalls/' + roomId).set({
+    sessionId: sessionId,
+    inspectorName: inspectorIdentity ? inspectorIdentity.name : '—',
+    inspectorId: inspectorIdentity ? inspectorIdentity.id : '—',
+    province: inspectorIdentity ? inspectorIdentity.province : '—',
+    roomId: roomId,
+    calledAt: new Date().toISOString(),
+    status: 'ringing' // ringing / answered / ended
+  });
+
   await setupPeerConnection();
   localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
@@ -1392,6 +1434,10 @@ function closeVideoCall() {
   document.getElementById('video-modal').classList.remove('open');
   if (pc) { pc.close(); pc = null; }
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  const roomId = getCallRoomId();
+  if (typeof db !== 'undefined' && db !== null) {
+    db.ref('incomingCalls/' + roomId).remove().catch(()=>{});
+  }
   if (callRoomRef) {
     callRoomRef.child('offer').off();
     callRoomRef.child('callerCandidates').off();
