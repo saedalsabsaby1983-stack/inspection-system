@@ -214,9 +214,23 @@ textarea.form-control { min-height: 70px; resize: vertical; }
   .province-grid { grid-template-columns: repeat(4,1fr); }
   .sidebar { display: none; }
 }
+@keyframes slideInCall {
+  from { opacity:0; transform:translateY(-20px) scale(.95); }
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+@keyframes ring {
+  0%,100% { transform:rotate(0deg); }
+  20% { transform:rotate(-15deg); }
+  40% { transform:rotate(15deg); }
+  60% { transform:rotate(-10deg); }
+  80% { transform:rotate(10deg); }
+}
 </style>
 </head>
 <body>
+<!-- حاوية إشعارات المكالمات الواردة — تظهر تلقائياً عندما يبدأ أي مفتش فرعي مكالمة -->
+<div id="incoming-calls-container" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:10px;min-width:320px;max-width:420px;pointer-events:none"></div>
+
 
 <!-- NOTIFICATION BAR -->
 <div class="notif-bar" id="notif-bar" onclick="showPanel('incoming')" style="display:none">
@@ -615,6 +629,16 @@ async function startCentralSync() {
     SyncEngine.listenToPresence((data) => {
       presenceData = data || {};
       updateTrackingPanel();
+    });
+
+    // 📞 الاستماع اللحظي للمكالمات الواردة من المفتشين الفرعيين — يُظهر popup تلقائياً
+    db.ref('incomingCalls').on('child_added', (snap) => {
+      const call = snap.val();
+      if (!call || !call.sessionId) return;
+      showIncomingCallPopup(call);
+    });
+    db.ref('incomingCalls').on('child_removed', (snap) => {
+      removeIncomingCallPopup(snap.key);
     });
   } else {
     // وضع احتياطي بدون Firebase: استخدام localStorage كما كان سابقاً (لجهاز واحد فقط)
@@ -1622,9 +1646,34 @@ function roomNameFromSession(sid) {
 
 async function getLocalStream() {
   if (localStream) return localStream;
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  document.getElementById('local-video').srcObject = localStream;
-  return localStream;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('local-video').srcObject = localStream;
+    return localStream;
+  } catch(e) {
+    document.getElementById('call-placeholder').innerHTML = `
+      <div style="background:#b71c1c;color:#fff;border-radius:8px;padding:16px;margin:10px;font-size:13px;line-height:1.8;text-align:right;max-width:400px">
+        ⚠️ <strong>يجب السماح بالكاميرا والمايكروفون</strong><br><br>
+        💻 <strong>على الحاسوب (Chrome):</strong><br>
+        1. انقر على أيقونة 📷 في شريط العنوان (يمين الرابط)<br>
+        2. اختر <strong>"Always allow"</strong> للكاميرا والمايكروفون<br>
+        3. أعد تحميل الصفحة (F5) ثم اضغط "اتصال" مجدداً<br><br>
+        <button onclick="retryCamera()" style="background:#fff;color:#b71c1c;border:none;padding:8px 18px;border-radius:6px;font-weight:bold;cursor:pointer;width:100%">🔄 إعادة المحاولة</button>
+      </div>`;
+    document.getElementById('call-status').textContent = '⚠️ الكاميرا مرفوضة';
+    throw e;
+  }
+}
+
+async function retryCamera() {
+  document.getElementById('call-placeholder').innerHTML = '<div style="color:#fff">جاري طلب إذن الكاميرا...</div>';
+  try {
+    await getLocalStream();
+    document.getElementById('call-placeholder').innerHTML = '<div style="color:#4caf50;font-size:14px">✅ الكاميرا جاهزة — أدخل رقم الجلسة واضغط "اتصال"</div>';
+    document.getElementById('call-status').textContent = 'الكاميرا جاهزة ✅';
+  } catch(e) {
+    document.getElementById('call-placeholder').innerHTML = '<div style="color:#ff8a80">لا يزال مرفوضاً — اتبع التعليمات أعلاه ثم اضغط "إعادة المحاولة" مجدداً</div>';
+  }
 }
 
 async function setupPeerConnection() {
@@ -1745,6 +1794,79 @@ function toggleCam() {
   camEnabled = !camEnabled;
   localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
   document.getElementById('btn-cam').textContent = camEnabled ? '📷' : '📷🚫';
+}
+
+// ===== INCOMING CALL POPUP (إشعار المكالمات الواردة من المفتشين الفرعيين) =====
+function showIncomingCallPopup(call) {
+  const container = document.getElementById('incoming-calls-container');
+  if (!container) return;
+  // لا تُكرّر popup لنفس المكالمة
+  if (document.getElementById('call-popup-' + call.roomId)) return;
+
+  const popup = document.createElement('div');
+  popup.id = 'call-popup-' + call.roomId;
+  popup.style.cssText = `
+    pointer-events:all;
+    background:#1b5e20;
+    color:#fff;
+    border-radius:12px;
+    padding:14px 16px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.4);
+    animation:slideInCall .3s ease;
+    font-size:13px;
+    line-height:1.7;
+  `;
+  popup.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:28px;animation:ring 1s infinite">📞</span>
+      <div>
+        <div style="font-weight:800;font-size:14px">مكالمة واردة من مفتش فرعي</div>
+        <div style="opacity:.85">${call.inspectorName || '—'} | ${call.province || '—'}</div>
+        <div style="opacity:.7;font-size:11px">رقم الجلسة: ${call.sessionId || '—'}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="answerIncomingCall('${call.roomId}','${call.sessionId}')"
+        style="flex:1;background:#4caf50;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer">
+        📹 رد على المكالمة
+      </button>
+      <button onclick="dismissIncomingCall('${call.roomId}')"
+        style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;cursor:pointer;min-width:44px">
+        ✕
+      </button>
+    </div>`;
+  container.appendChild(popup);
+
+  // تشغيل صوت تنبيه (اختياري — يعمل فقط إذا كان المتصفح مفتوحاً)
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 400, 800].forEach(delay => {
+      setTimeout(() => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc.start(); osc.stop(ctx.currentTime + 0.3);
+      }, delay);
+    });
+  } catch(e) {}
+}
+
+function removeIncomingCallPopup(roomId) {
+  const popup = document.getElementById('call-popup-' + roomId);
+  if (popup) popup.remove();
+}
+
+function answerIncomingCall(roomId, sessionId) {
+  removeIncomingCallPopup(roomId);
+  // تعبئة رقم الجلسة تلقائياً وفتح نافذة المكالمة
+  openVideoCall(sessionId);
+}
+
+function dismissIncomingCall(roomId) {
+  removeIncomingCallPopup(roomId);
 }
 
 // Register Service Worker for offline PWA capability
