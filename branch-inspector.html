@@ -1272,20 +1272,25 @@ const METERED_APP_DOMAIN = 'inspection.metered.live';
 
 async function getIceServers() {
   try {
-    const res = await fetch(`https://${METERED_APP_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`);
+    const res = await fetch(
+      `https://${METERED_APP_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`,
+      { signal: AbortSignal.timeout(3000) }
+    );
     if (res.ok) {
       const servers = await res.json();
-      document.getElementById('call-status').textContent = 'جاري الاتصال... (TURN ✅)';
+      if (document.getElementById('call-status')) document.getElementById('call-status').textContent = 'جاري الاتصال... (TURN ✅)';
       return servers;
     }
-  } catch (e) { console.warn('Metered fetch failed:', e.message); }
-  // احتياطي: TCP/443 فقط (لا يُحجب حتى في الشبكات المقيّدة)
-  document.getElementById('call-status').textContent = 'جاري الاتصال... (وضع TCP/443)';
+  } catch (e) { console.warn('Metered fetch:', e.message); }
+  if (document.getElementById('call-status')) document.getElementById('call-status').textContent = 'جاري الاتصال... (TCP/443)';
   return [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:relay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
   ];
 }
 let pc = null, localStream = null, callRoomRef = null;
