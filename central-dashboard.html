@@ -1685,7 +1685,7 @@ async function retryCamera() {
 
 async function setupPeerConnection() {
   const iceServers = await getIceServers();
-  pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: 'relay' });
+  pc = new RTCPeerConnection({ iceServers });
   const remoteVideo = document.getElementById('remote-video');
   pc.ontrack = (event) => {
     if (event.streams && event.streams[0]) {
@@ -1701,10 +1701,16 @@ async function setupPeerConnection() {
     if (!pc) return;
     const state = pc.connectionState;
     const statusEl = document.getElementById('call-status');
-    if (state === 'connected') { statusEl.textContent = 'متصل ●'; document.getElementById('call-placeholder').style.display = 'none'; }
+    if (state === 'connected') { 
+      statusEl.textContent = 'متصل ●'; 
+      document.getElementById('call-placeholder').style.display = 'none'; 
+    }
     if (state === 'connecting') statusEl.textContent = 'جاري الاتصال...';
-    if (state === 'failed') { statusEl.textContent = 'فشل الاتصال — يُعاد المحاولة...'; pc.restartIce && pc.restartIce(); }
-    if (state === 'disconnected') statusEl.textContent = 'انقطع الاتصال';
+    if (state === 'failed') { 
+      statusEl.textContent = 'فشل — يُعاد تلقائياً...'; 
+      setTimeout(() => { if (pc) pc.restartIce && pc.restartIce(); }, 2000);
+    }
+    if (state === 'disconnected') statusEl.textContent = 'انقطع — يُعاد...';
   };
   return pc;
 }
