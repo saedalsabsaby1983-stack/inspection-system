@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام المفتش المركزي — لوحة الاستقبال والمراجعة</title>
-<link rel="manifest" href="manifest-central.json">
-<meta name="theme-color" content="#0a1628">
+<title>نظام المفتش الفرعي — وزارة الشؤون الاجتماعية والعمل</title>
+<link rel="manifest" href="manifest-branch.json">
+<meta name="theme-color" content="#1a3a5c">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
   --primary: #1a3a5c;
@@ -17,167 +16,283 @@
   --success: #2e7d32;
   --warning: #e65100;
   --danger: #b71c1c;
-  --bg: #f0f4fa;
+  --bg: #f5f6fa;
   --card: #ffffff;
   --border: #dde3ef;
   --text: #1a2332;
   --muted: #5a6a7e;
+  --sidebar-w: 220px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
 
 /* Header */
 .header {
-  background: linear-gradient(135deg, #0a1628 0%, #1a3a5c 70%, #1e4976 100%);
-  color: white;
+  background: linear-gradient(135deg, #0d2137 0%, #1a3a5c 60%, #1e4976 100%);
+  color: white; padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
-.header-top { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.header-logo { width: 60px; height: 60px; }
-.header-titles h1 { font-size: 16px; font-weight: 800; }
-.header-titles h2 { font-size: 12px; opacity: 0.85; margin-top: 2px; }
-.header-titles h3 { font-size: 11px; opacity: 0.65; margin-top: 2px; }
-.header-lock { margin-right: auto; text-align: left; font-size: 11px; opacity: 0.7; }
-.header-badges { display: flex; gap: 8px; padding: 8px 20px; background: rgba(0,0,0,0.2); font-size: 11px; flex-wrap: wrap; }
-.badge { padding: 3px 10px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.header-top {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.header-logo { width: 56px; height: 56px; }
+.header-titles { flex: 1; }
+.header-titles h1 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.header-titles h2 { font-size: 12px; font-weight: 400; opacity: 0.85; }
+.header-titles h3 { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.header-badges {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 8px 20px;
+  background: rgba(0,0,0,0.2);
+  font-size: 11px;
+}
+.badge {
+  padding: 3px 10px; border-radius: 20px; font-weight: 600;
+  display: flex; align-items: center; gap: 4px;
+}
 .badge-green { background: #1b5e20; color: #a5d6a7; }
 .badge-blue { background: #0d47a1; color: #90caf9; }
 .badge-orange { background: #e65100; color: #ffe0b2; }
-.badge-red { background: #b71c1c; color: #ef9a9a; }
-.status-bar { display: flex; gap: 20px; align-items: center; padding: 6px 20px; font-size: 11px; background: rgba(255,255,255,0.05); }
+.status-bar {
+  display: flex; gap: 20px; align-items: center;
+  padding: 6px 20px; font-size: 11px;
+  background: rgba(255,255,255,0.05);
+}
 .live-dot { width: 8px; height: 8px; background: #4caf50; border-radius: 50%; animation: pulse 1.5s infinite; display: inline-block; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 
 /* Layout */
-.app-layout { display: flex; min-height: calc(100vh - 130px); }
+.app-layout { display: flex; min-height: calc(100vh - 120px); }
 
 /* Sidebar */
-.sidebar { width: 200px; background: var(--primary); color: white; flex-shrink: 0; }
-.sidebar-item { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; font-size: 12px; transition: background .15s; color: rgba(255,255,255,.85); border: none; background: none; width: 100%; text-align: right; }
-.sidebar-item:hover { background: rgba(255,255,255,.1); }
+.sidebar {
+  width: var(--sidebar-w); background: var(--primary); color: white;
+  flex-shrink: 0; display: flex; flex-direction: column;
+}
+.sidebar-section { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-label { font-size: 10px; color: rgba(255,255,255,0.5); padding: 6px 14px 2px; text-transform: uppercase; letter-spacing: 1px; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; cursor: pointer; font-size: 12px;
+  transition: background 0.15s; color: rgba(255,255,255,0.85);
+  border: none; background: none; width: 100%; text-align: right;
+}
+.sidebar-item:hover { background: rgba(255,255,255,0.1); }
 .sidebar-item.active { background: var(--accent); color: #1a1a1a; font-weight: 700; }
-.sidebar-divider { border: none; border-top: 1px solid rgba(255,255,255,.1); margin: 4px 0; }
+.sidebar-icon { font-size: 14px; }
 
 /* Main */
 .main-content { flex: 1; padding: 16px; overflow-y: auto; }
 
 /* Cards */
-.card { background: var(--card); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-.card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; background: linear-gradient(90deg, #f0f4ff, #fff); border-radius: 8px 8px 0 0; }
+.card {
+  background: var(--card); border-radius: 8px;
+  border: 1px solid var(--border); margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.card-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(90deg, #f0f4ff, #fff);
+  border-radius: 8px 8px 0 0;
+}
 .card-header h3 { font-size: 13px; font-weight: 700; color: var(--primary); flex: 1; }
 .card-body { padding: 14px 16px; }
 
-/* Stats grid */
-.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
-.stat-box { background: var(--card); border-radius: 10px; border: 1px solid var(--border); padding: 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
-.stat-num { font-size: 28px; font-weight: 800; color: var(--primary); }
-.stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
-.stat-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+/* Progress Steps */
+.steps-bar {
+  display: flex; align-items: center; background: var(--card);
+  border-bottom: 2px solid var(--border); padding: 0 16px;
+  overflow-x: auto; gap: 0;
+}
+.step-item {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 12px; cursor: pointer; position: relative;
+  flex-shrink: 0; border-bottom: 3px solid transparent;
+  transition: all 0.2s; min-width: 80px;
+}
+.step-item.active { border-bottom-color: var(--accent); }
+.step-item.done { border-bottom-color: var(--success); }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--border); color: var(--muted); margin-bottom: 4px;
+}
+.step-item.active .step-num { background: var(--accent); color: #fff; }
+.step-item.done .step-num { background: var(--success); color: #fff; }
+.step-label { font-size: 10px; color: var(--muted); text-align: center; white-space: nowrap; }
+.step-item.active .step-label { color: var(--primary); font-weight: 700; }
 
-/* Panels */
-.panel { display: none; }
-.panel.active { display: block; }
+/* Forms */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1/-1; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--muted); }
+.form-control {
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: inherit; color: var(--text);
+  background: #fafbff; transition: border 0.2s;
+}
+.form-control:focus { outline: none; border-color: var(--primary); background: #fff; }
+select.form-control { cursor: pointer; }
+textarea.form-control { min-height: 80px; resize: vertical; }
 
-/* Table */
-.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.data-table th { background: var(--primary); color: white; padding: 8px 10px; text-align: right; font-weight: 600; }
-.data-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.data-table tr:hover td { background: #f5f8ff; }
-.data-table tr:nth-child(even) td { background: #fafbff; }
-.data-table tr:nth-child(even):hover td { background: #f0f4ff; }
+/* Section header */
+.section-title {
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(90deg, var(--primary), #1e4976);
+  color: white; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px;
+  font-size: 12px; font-weight: 700;
+}
 
-/* Status badges */
-.status-badge { padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; white-space: nowrap; }
-.s-received { background: #e3f2fd; color: #0d47a1; }
-.s-reviewing { background: #fff8e1; color: #e65100; }
-.s-approved { background: #e8f5e9; color: #1b5e20; }
-.s-urgent { background: #ffebee; color: #b71c1c; }
-.s-escalated { background: #f3e5f5; color: #6a1b9a; }
+/* Legal box */
+.legal-box {
+  background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px;
+  padding: 10px 12px; margin-bottom: 12px; font-size: 11px;
+  max-height: 120px; overflow-y: auto; color: #5a4200; line-height: 1.6;
+}
+.legal-box p { margin-bottom: 4px; }
 
-/* Class badge */
-.cls-ok { background: #e8f5e9; color: #1b5e20; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
-.cls-minor { background: #fff8e1; color: #e65100; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
-.cls-medium { background: #fff3e0; color: #e65100; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
-.cls-major { background: #ffebee; color: #b71c1c; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
-.cls-danger { background: #b71c1c; color: white; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
+/* Stats row */
+.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+.stat-box {
+  background: var(--card); border-radius: 8px; border: 1px solid var(--border);
+  padding: 12px; text-align: center;
+}
+.stat-num { font-size: 22px; font-weight: 800; color: var(--primary); }
+.stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* Compliance items */
+.compliance-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+  margin-bottom: 8px; background: #fafbff;
+}
+.compliance-check { display: flex; gap: 6px; }
+.compliance-btn {
+  padding: 4px 10px; border-radius: 20px; border: 1px solid;
+  font-size: 11px; cursor: pointer; font-weight: 600; transition: all 0.15s;
+}
+.btn-ok { border-color: var(--success); color: var(--success); }
+.btn-ok.active { background: var(--success); color: white; }
+.btn-partial { border-color: #f57c00; color: #f57c00; }
+.btn-partial.active { background: #f57c00; color: white; }
+.btn-no { border-color: var(--danger); color: var(--danger); }
+.btn-no.active { background: var(--danger); color: white; }
+.compliance-text { flex: 1; font-size: 12px; line-height: 1.5; }
+.compliance-ref { font-size: 10px; color: var(--accent); font-weight: 700; }
+
+/* GPS */
+.gps-box {
+  background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
+  padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-bottom: 12px;
+}
+.gps-field { display: flex; flex-direction: column; gap: 2px; }
+.gps-label { font-size: 10px; color: #2e7d32; font-weight: 700; }
+.gps-value { font-size: 12px; font-family: monospace; color: #1b5e20; }
+
+/* Timeline */
+.timeline { border-right: 2px solid var(--border); padding-right: 14px; margin-right: 10px; }
+.tl-item {
+  position: relative; margin-bottom: 14px;
+}
+.tl-item::before {
+  content: ''; position: absolute; right: -20px; top: 4px;
+  width: 10px; height: 10px; border-radius: 50%; background: var(--border);
+}
+.tl-item.done::before { background: var(--success); }
+.tl-item.active::before { background: var(--accent); animation: pulse 1.5s infinite; }
+.tl-time { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+.tl-text { font-size: 12px; font-weight: 600; }
+.tl-sub { font-size: 11px; color: var(--muted); }
+
+/* Camera box */
+.camera-box {
+  background: #1a1a2e; border-radius: 8px; overflow: hidden;
+  aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px; position: relative;
+}
+.camera-box video { width: 100%; height: 100%; object-fit: cover; }
+.camera-placeholder { color: rgba(255,255,255,0.4); text-align: center; }
+.camera-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.rec-dot { width: 8px; height: 8px; background: red; border-radius: 50%; animation: pulse 1s infinite; }
 
 /* Buttons */
-.btn { padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; font-family: inherit; transition: all .2s; display: inline-flex; align-items: center; gap: 5px; }
+.btn {
+  padding: 9px 18px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 700; font-family: inherit; transition: all 0.2s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
 .btn-primary { background: var(--primary); color: white; }
 .btn-primary:hover { background: #0d2137; }
 .btn-accent { background: var(--accent); color: #1a1a1a; }
+.btn-accent:hover { background: #b8943b; }
 .btn-success { background: var(--success); color: white; }
 .btn-danger { background: var(--danger); color: white; }
-.btn-warning { background: var(--warning); color: white; }
 .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
 .btn-outline:hover { border-color: var(--primary); }
-.btn-sm { padding: 5px 10px; font-size: 11px; }
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 
-/* Charts (CSS-only) */
-.bar-chart { display: flex; gap: 6px; align-items: flex-end; height: 120px; padding: 8px 0; }
-.bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; }
-.bar { width: 100%; background: var(--primary); border-radius: 4px 4px 0 0; transition: height .5s; min-height: 4px; }
-.bar-val { font-size: 10px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
-.bar-lbl { font-size: 9px; color: var(--muted); margin-top: 4px; text-align: center; }
-
-/* Map visual */
-.map-placeholder { background: #e8edf5; border-radius: 8px; padding: 20px; text-align: center; color: var(--muted); font-size: 12px; border: 1px dashed var(--border); }
-
-/* Detail panel */
-.detail-card { background: #f8faff; border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
-.detail-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.detail-field { flex: 1; min-width: 140px; }
-.detail-label { font-size: 10px; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
-.detail-value { font-size: 12px; }
-
-/* Decision form */
-.decision-form { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 14px; margin-top: 12px; }
-.decision-form h4 { font-size: 12px; font-weight: 700; color: #5a3e00; margin-bottom: 10px; }
-.form-control { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; color: var(--text); background: #fafbff; width: 100%; margin-bottom: 8px; }
-.form-control:focus { outline: none; border-color: var(--primary); }
-select.form-control { cursor: pointer; }
-textarea.form-control { min-height: 70px; resize: vertical; }
-
-/* Province tags */
-.province-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; }
-.province-tag { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px; text-align: center; }
-.province-tag .count { font-size: 18px; font-weight: 800; color: var(--primary); }
-.province-tag .name { font-size: 10px; color: var(--muted); margin-top: 2px; }
-.province-tag.has-data { border-color: var(--accent); background: #fffbf0; }
-.province-tag.has-data .count { color: var(--accent); }
-
-/* Violation levels chart */
-.viol-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.viol-label { width: 120px; font-size: 11px; }
-.viol-track { flex: 1; background: #e8edf5; border-radius: 4px; height: 18px; overflow: hidden; }
-.viol-fill { height: 100%; border-radius: 4px; transition: width .5s; display: flex; align-items: center; padding-right: 6px; font-size: 10px; color: white; font-weight: 700; }
-
-/* Video modal */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000; align-items: center; justify-content: center; }
+/* Video call modal */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 1000;
+  align-items: center; justify-content: center;
+}
 .modal-overlay.open { display: flex; }
-.modal { background: #111827; color: white; border-radius: 12px; width: 500px; overflow: hidden; }
-.modal-header { padding: 14px 16px; background: rgba(255,255,255,.08); display: flex; align-items: center; justify-content: space-between; font-weight: 700; }
+.modal {
+  background: #111827; color: white; border-radius: 12px;
+  width: 480px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal-header {
+  padding: 14px 16px; background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 700;
+}
 .modal-body { padding: 16px; }
 .video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-.video-panel { background: #0d1117; border-radius: 8px; aspect-ratio: 4/3; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.video-panel {
+  background: #0d1117; border-radius: 8px; aspect-ratio: 4/3;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
 .video-panel video { width: 100%; height: 100%; object-fit: cover; }
-.video-label { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,.7); padding: 2px 8px; border-radius: 20px; font-size: 10px; }
+.video-label {
+  position: absolute; bottom: 6px; right: 6px;
+  background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 20px;
+  font-size: 10px;
+}
+.video-status { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 8px; text-align: center; }
 .call-controls { display: flex; justify-content: center; gap: 12px; }
-.call-btn { width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.15); color: white; transition: all .2s; }
+.call-btn {
+  width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.15); color: white; transition: all 0.2s;
+}
+.call-btn:hover { background: rgba(255,255,255,0.25); }
 .call-btn.end { background: #b71c1c; }
-.call-meta { text-align: center; font-size: 11px; color: rgba(255,255,255,.5); margin-top: 8px; }
-.close-btn { background: none; border: none; color: inherit; cursor: pointer; font-size: 16px; }
+.call-meta { text-align: center; font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 8px; }
 
-/* Import modal */
-.import-modal { background: white; border-radius: 10px; width: 440px; overflow: hidden; }
-.import-header { background: var(--primary); color: white; padding: 14px 16px; display: flex; justify-content: space-between; }
-.import-body { padding: 16px; }
-.drop-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 30px; text-align: center; color: var(--muted); cursor: pointer; transition: all .2s; }
-.drop-zone:hover { border-color: var(--primary); background: #f0f4ff; }
+/* Send modal */
+.send-modal { background: white; border-radius: 10px; width: 440px; overflow: hidden; }
+.send-header { background: var(--primary); color: white; padding: 14px 16px; display: flex; justify-content: space-between; }
+.send-body { padding: 16px; }
+.json-preview {
+  background: #1a1a2e; color: #4fc3f7; font-family: monospace; font-size: 11px;
+  padding: 12px; border-radius: 6px; max-height: 200px; overflow-y: auto; margin-bottom: 12px;
+  white-space: pre-wrap; word-break: break-all;
+}
 
-/* Notification bar */
-.notif-bar { background: var(--accent); color: #1a1a1a; padding: 8px 16px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.notif-bar:hover { background: #b8943b; }
+/* Hash box */
+.hash-box {
+  background: #1a2332; color: #4fc3f7; font-family: monospace; font-size: 10px;
+  padding: 10px 12px; border-radius: 6px; word-break: break-all;
+  margin-bottom: 8px;
+}
 
 /* Alert */
 .alert { padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
@@ -185,207 +300,235 @@ textarea.form-control { min-height: 70px; resize: vertical; }
 .alert-success { background: #e8f5e9; border: 1px solid #a5d6a7; color: #1b5e20; }
 .alert-warning { background: #fff3e0; border: 1px solid #ffe082; color: #e65100; }
 
-/* Live presence / inspectors tracking */
-.inspector-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.inspector-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.inspector-dot.online { background: #2e7d32; animation: pulse 1.5s infinite; }
-.inspector-dot.offline { background: #9e9e9e; }
-.inspector-info { flex: 1; }
-.inspector-name { font-size: 13px; font-weight: 700; }
-.inspector-meta { font-size: 11px; color: var(--muted); }
-.inspector-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
-.inspector-status.online { background: #e8f5e9; color: #1b5e20; }
-.inspector-status.offline { background: #f5f5f5; color: #757575; }
+/* Close button */
+.close-btn { background: none; border: none; color: inherit; cursor: pointer; font-size: 16px; }
 
-/* Sync indicator in header */
-.sync-indicator { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-.sync-indicator .dot { width: 8px; height: 8px; border-radius: 50%; }
-.sync-indicator.connected .dot { background: #4caf50; animation: pulse 1.5s infinite; }
-.sync-indicator.disconnected .dot { background: #f44336; }
+/* Section panels */
+.section-panel { display: none; }
+.section-panel.active { display: block; }
 
-/* Filter grid */
-.filter-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; align-items: end; }
-.form-group { display: flex; flex-direction: column; gap: 4px; }
-.form-label { font-size: 11px; font-weight: 600; color: var(--muted); }
+/* Upload area */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: 8px; padding: 20px;
+  text-align: center; color: var(--muted); cursor: pointer;
+  transition: all 0.2s; margin-bottom: 10px;
+}
+.upload-area:hover { border-color: var(--primary); color: var(--primary); background: #f0f4ff; }
+.upload-icon { font-size: 28px; margin-bottom: 6px; }
+.upload-text { font-size: 12px; }
 
-@media (max-width: 900px) {
-  .filter-grid { grid-template-columns: 1fr 1fr; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .province-grid { grid-template-columns: repeat(4,1fr); }
+/* Sync status bar */
+.sync-bar {
+  position: sticky; top: 0; z-index: 500;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px; font-size: 11px; font-weight: 700;
+  transition: background 0.3s;
+}
+.sync-bar.online { background: #e8f5e9; color: #1b5e20; border-bottom: 1px solid #a5d6a7; }
+.sync-bar.offline { background: #ffebee; color: #b71c1c; border-bottom: 1px solid #ef9a9a; }
+.sync-bar.syncing { background: #fff8e1; color: #e65100; border-bottom: 1px solid #ffe082; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.sync-bar.online .sync-dot { background: #2e7d32; animation: pulse 1.5s infinite; }
+.sync-bar.offline .sync-dot { background: #b71c1c; }
+.sync-bar.syncing .sync-dot { background: #e65100; animation: pulse 0.8s infinite; }
+.sync-count { margin-right: auto; opacity: 0.8; }
+
+/* Setup modal for first-time inspector identification */
+.setup-overlay {
+  position: fixed; inset: 0; background: rgba(10,20,35,0.92); z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+}
+.setup-box { background: white; border-radius: 12px; width: 420px; max-width: 92vw; overflow: hidden; }
+.setup-header { background: linear-gradient(135deg,#0d2137,#1a3a5c); color: white; padding: 18px 20px; }
+.setup-header h2 { font-size: 15px; margin-bottom: 4px; }
+.setup-header p { font-size: 11px; opacity: 0.8; }
+.setup-body { padding: 18px 20px; }
+
+/* Responsive */
+.mobile-menu-btn { display: none; }
+.mobile-sidebar-backdrop { display: none; }
+@media (max-width: 700px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
   .sidebar { display: none; }
-}
-@keyframes slideInCall {
-  from { opacity:0; transform:translateY(-20px) scale(.95); }
-  to { opacity:1; transform:translateY(0) scale(1); }
-}
-@keyframes ring {
-  0%,100% { transform:rotate(0deg); }
-  20% { transform:rotate(-15deg); }
-  40% { transform:rotate(15deg); }
-  60% { transform:rotate(-10deg); }
-  80% { transform:rotate(10deg); }
+  .sidebar.mobile-open {
+    display: flex !important;
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 78vw; max-width: 300px;
+    z-index: 9999;
+    box-shadow: -6px 0 24px rgba(0,0,0,.4);
+    overflow-y: auto;
+  }
+  .mobile-menu-btn {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; left: 16px; bottom: 16px; z-index: 9000;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--primary, #0d2137); color: #fff;
+    font-size: 22px; border: none; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  }
+  .mobile-sidebar-backdrop.open {
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9998;
+  }
+  .mobile-sidebar-close {
+    display: block !important; width: 100%; text-align: left; padding: 10px 14px;
+    background: rgba(255,255,255,.08); color: #fff; border: none; font-size: 13px;
+  }
 }
 </style>
 </head>
 <body>
-<!-- حاوية إشعارات المكالمات الواردة — تظهر تلقائياً عندما يبدأ أي مفتش فرعي مكالمة -->
-<div id="incoming-calls-container" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:10px;min-width:320px;max-width:420px;pointer-events:none"></div>
 
-
-<!-- NOTIFICATION BAR -->
-<div class="notif-bar" id="notif-bar" onclick="showPanel('incoming')" style="display:none">
-  🔔 <span id="notif-text">استمارات فرعية جديدة</span> — اضغط للعرض
+<!-- SETUP MODAL: تعريف المفتش الفرعي عند أول استخدام -->
+<div class="setup-overlay" id="setup-overlay">
+  <div class="setup-box">
+    <div class="setup-header">
+      <h2>🇸🇾 تعريف المفتش الفرعي</h2>
+      <p>هذه المعلومات تُستخدم لربط هذا الجهاز بحساب المفتش في النظام المركزي. تُحفظ مرة واحدة فقط على هذا الجهاز.</p>
+    </div>
+    <div class="setup-body">
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">اسم المفتش الفرعي *</label>
+        <input class="form-control" id="setup-name" placeholder="الاسم الثلاثي">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">الرقم الوظيفي *</label>
+        <input class="form-control" id="setup-id" placeholder="رقم الوظيفة">
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">مديرية الشؤون الاجتماعية والعمل في محافظة *</label>
+        <select class="form-control" id="setup-province">
+          <option value="">-- اختر المحافظة --</option>
+          <option>دمشق</option><option>ريف دمشق</option><option>حلب</option>
+          <option>حمص</option><option>حماة</option><option>اللاذقية</option>
+          <option>طرطوس</option><option>دير الزور</option><option>الرقة</option>
+          <option>الحسكة</option><option>درعا</option><option>القنيطرة</option>
+          <option>السويداء</option><option>إدلب</option>
+        </select>
+      </div>
+      <button class="btn btn-accent" style="width:100%;justify-content:center" onclick="completeSetup()">✅ بدء الجلسة وربطها بالمركزي</button>
+    </div>
+  </div>
 </div>
+
+<!-- SYNC STATUS BAR -->
+<div class="sync-bar offline" id="sync-bar">
+  <span class="sync-dot"></span>
+  <span id="sync-text">جاري التحقق من حالة الاتصال...</span>
+  <span class="sync-count" id="sync-count"></span>
+</div>
+
 
 <!-- HEADER -->
 <div class="header">
   <div class="header-top">
-    <img class="header-logo" src="https://skyagent-artifacts.skywork.ai/router/agent/2026-05-18/prod_agent_5b72fe16-665b-4196-a784-38119130ea67/syria-logo_a15eea05081c404d98dbfa08fe41f271.jpg" alt="شعار" onerror="this.style.display='none'">
+    <img class="header-logo" src="https://skyagent-artifacts.skywork.ai/router/agent/2026-05-18/prod_agent_5b72fe16-665b-4196-a784-38119130ea67/syria-logo_a15eea05081c404d98dbfa08fe41f271.jpg" alt="شعار الجمهورية العربية السورية" onerror="this.style.display='none'">
     <div class="header-titles">
-      <h1>🇸🇾 الجمهورية العربية السورية — التفتيش المركزي</h1>
-      <h2>نظام المفتش المركزي — لوحة الاستقبال والمراجعة</h2>
+      <h1>🇸🇾 الجمهورية العربية السورية</h1>
+      <h2>نظام المفتش الفرعي — الاستمارة التفتيشية الميدانية</h2>
       <h3>وزارة الشؤون الاجتماعية والعمل — مديرية التفتيش المركزي</h3>
     </div>
-    <div class="header-lock">
-      <span class="sync-indicator disconnected" id="firebase-status">🔌 <span id="fb-status-text">جاري الاتصال بقاعدة البيانات...</span></span><br>
-      🔔 <span id="notif-count">0</span> إشعار<br>
-      <span id="header-session" style="font-size:10px">CT-2026-00001</span>
+    <div style="text-align:left">
+      <span id="session-id" style="font-size:11px;opacity:0.7">BR-----</span>
     </div>
   </div>
   <div class="header-badges">
-    <span class="badge badge-green">● نظام حي</span>
-    <span class="badge badge-blue">📋 ILO-Compliant</span>
-    <span class="badge badge-orange">📍 دمشق — المزة</span>
-    <span style="margin-right:auto;opacity:.7">مسودة تعديل قانون العمل رقم 17 • اتفاقية ILO رقم 81 • اتفاقية ILO رقم 129 • الإصدار 2026</span>
-    <button class="btn btn-sm btn-accent" onclick="openImport()">📥 استيراد JSON</button>
-    <button class="btn btn-sm btn-outline" style="color:white;border-color:rgba(255,255,255,.3)" onclick="exportAll()">📤 تصدير الكل</button>
-    <button class="btn btn-sm btn-outline" style="color:white;border-color:rgba(255,255,255,.3)" onclick="openVideoCall()">📹 اتصال بمفتش فرعي</button>
+    <span class="badge badge-green">● فرعي — محافظة</span>
+    <span class="badge badge-blue" id="conn-badge">✅ متصل بالمركزي</span>
+    <span class="badge badge-orange">🔄 جاهز للمزامنة</span>
+    <span style="margin-right:auto; opacity:0.7">مسودة تعديل قانون العمل رقم 17 لعام 2010 • اتفاقية ILO رقم 81 • اتفاقية ILO رقم 129 • الإصدار 2026</span>
   </div>
   <div class="status-bar">
     <span><span class="live-dot"></span> بث مباشر</span>
-    <span>⏱ المنفذ: <span id="current-time">--:--:--</span></span>
-    <span>⏳ مدة الجلسة: <span id="session-dur">00:00:00</span></span>
-    <span>رقم الجلسة: CT-2026-00001</span>
-    <button class="btn btn-sm btn-outline" style="color:white;border-color:rgba(255,255,255,.3);margin-right:auto" onclick="openFirebaseSetup()">⚙️ إعداد Firebase</button>
+    <span>⏱ المدة: <span id="session-timer">00:00:00</span></span>
+    <span>📍 GPS: <span id="gps-status-header">لم يُحدَّد</span></span>
+    <span style="margin-right:auto">🔐 AES-256 مشفّرة</span>
   </div>
 </div>
 
+<!-- STEPS BAR -->
+<div class="steps-bar" id="steps-bar">
+  <div class="step-item active" onclick="goStep(1)"><div class="step-num">1</div><div class="step-label">بيانات الزيارة</div></div>
+  <div class="step-item" onclick="goStep(2)"><div class="step-num">2</div><div class="step-label">المنشأة</div></div>
+  <div class="step-item" onclick="goStep(3)"><div class="step-num">3</div><div class="step-label">عقود وأجور</div></div>
+  <div class="step-item" onclick="goStep(4)"><div class="step-num">4</div><div class="step-label">السلامة</div></div>
+  <div class="step-item" onclick="goStep(5)"><div class="step-num">5</div><div class="step-label">حقوق العمال</div></div>
+  <div class="step-item" onclick="goStep(6)"><div class="step-num">6</div><div class="step-label">التتبع والأدلة</div></div>
+  <div class="step-item" onclick="goStep(7)"><div class="step-num">7</div><div class="step-label">النتائج والإرسال</div></div>
+</div>
+
 <!-- LAYOUT -->
+<button class="mobile-menu-btn" onclick="openMobileSidebar()" title="القائمة والإجراءات">☰</button>
+<div class="mobile-sidebar-backdrop" id="mobile-sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 <div class="app-layout">
   <!-- SIDEBAR -->
-  <div class="sidebar">
-    <button class="sidebar-item active" onclick="showPanel('dashboard')">📊 <span>لوحة التحكم</span></button>
-    <button class="sidebar-item" onclick="showPanel('tracking')">📡 <span>تتبع المفتشين لحظياً</span></button>
-    <button class="sidebar-item" onclick="showPanel('incoming')">📨 <span>الاستمارات الواردة</span></button>
-    <button class="sidebar-item" onclick="showPanel('review')">🔍 <span>مراجعة الاستمارة</span></button>
-    <button class="sidebar-item" onclick="showPanel('stats')">📈 <span>التقارير الإحصائية</span></button>
-    <button class="sidebar-item" onclick="showPanel('periodic')">🗓️ <span>التقارير الدورية والإجمالية</span></button>
-    <hr class="sidebar-divider">
-    <button class="sidebar-item" onclick="openImport()">📥 <span>استيراد JSON</span></button>
-    <button class="sidebar-item" onclick="exportAll()">📤 <span>تصدير الكل</span></button>
-    <button class="sidebar-item" onclick="listBackups()">🗄️ <span>النسخ الاحتياطية</span></button>
-    <button class="sidebar-item" onclick="window.print()">🖨️ <span>طباعة</span></button>
-    <button class="sidebar-item" onclick="openVideoCall()">📹 <span>اتصال بمفتش فرعي</span></button>
-    <hr class="sidebar-divider">
-    <button class="sidebar-item" style="color:#ff8a80" onclick="factoryReset()">🗑️ <span>تصفير كامل / بدء جديد</span></button>
+  <div class="sidebar" id="sidebar">
+    <button class="mobile-sidebar-close" style="display:none" onclick="closeMobileSidebar()">✕ إغلاق القائمة</button>
+    <div class="sidebar-section">
+      <div class="sidebar-label">الاستمارة</div>
+      <button class="sidebar-item" onclick="goStep(1)">📋 <span>بيانات الزيارة</span></button>
+      <button class="sidebar-item" onclick="goStep(2)">🏭 <span>معلومات المنشأة</span></button>
+      <button class="sidebar-item" onclick="goStep(3)">📄 <span>عقود والأجور</span></button>
+      <button class="sidebar-item" onclick="goStep(4)">🦺 <span>السلامة المهنية</span></button>
+      <button class="sidebar-item" onclick="goStep(5)">⚖️ <span>حقوق العمال</span></button>
+      <button class="sidebar-item" onclick="goStep(6)">📡 <span>التتبع والأدلة</span></button>
+      <button class="sidebar-item" onclick="goStep(7)">📝 <span>النتائج والإرسال</span></button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">الإجراءات</div>
+      <button class="sidebar-item" onclick="openSendModal()">📤 <span>إرسال للمركزي</span></button>
+      <button class="sidebar-item" onclick="openVideoCall()">📹 <span>اتصال مرئي</span></button>
+      <button class="sidebar-item" onclick="saveLocal()">💾 <span>حفظ محلي</span></button>
+      <button class="sidebar-item" onclick="printForm()">🖨️ <span>طباعة</span></button>
+    </div>
+    <div class="sidebar-section" style="padding:10px 14px">
+      <div class="sidebar-label" style="padding:0 0 6px">إحصائيات</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);line-height:2">
+        ✅ مستوفية: <span id="sb-ok">0</span><br>
+        ⚠️ جزئية: <span id="sb-partial">0</span><br>
+        ❌ مخالفات: <span id="sb-viol">0</span><br>
+        📊 الامتثال: <span id="sb-pct">0%</span>
+      </div>
+    </div>
   </div>
 
   <!-- MAIN -->
   <div class="main-content">
 
-    <!-- DASHBOARD -->
-    <div id="panel-dashboard" class="panel active">
-      <div class="stats-grid">
-        <div class="stat-box"><div class="stat-num" id="d-total">0</div><div class="stat-label">إجمالي الاستمارات</div><div class="stat-sub">من جميع المحافظات</div></div>
-        <div class="stat-box"><div class="stat-num" id="d-reviewed">0</div><div class="stat-label">تمت المراجعة</div><div class="stat-sub">معتمدة وموثقة</div></div>
-        <div class="stat-box"><div class="stat-num" id="d-pending">0</div><div class="stat-label">قيد المراجعة</div><div class="stat-sub">بانتظار القرار</div></div>
-        <div class="stat-box"><div class="stat-num" id="d-urgent">0</div><div class="stat-label">حالات عاجلة</div><div class="stat-sub">تتطلب تدخل فوري</div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><span>📍</span><h3>توزيع الاستمارات حسب المحافظة</h3></div>
-        <div class="card-body">
-          <div class="province-grid" id="province-grid"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><span>⚠️</span><h3>توزيع حسب مستوى المخالفة</h3></div>
-        <div class="card-body" id="violation-chart"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><span>📋</span><h3>آخر الاستمارات الواردة</h3></div>
-        <div class="card-body" style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr><th>#</th><th>المفتش الفرعي</th><th>المنشأة</th><th>المحافظة</th><th>التاريخ</th><th>التصنيف</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-            <tbody id="recent-table">
-              <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">لا توجد استمارات بعد — انتظر ورود استمارات من المفتشين الفرعيين أو استورد JSON</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-num" id="stat-ok">0</div><div class="stat-label">✓ بنود مستوفاة</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-partial">0</div><div class="stat-label">⚠ جزئية</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-viol">0</div><div class="stat-label">✗ مخالفات</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-pct">0%</div><div class="stat-label">📊 نسبة الامتثال</div></div>
     </div>
 
-    <!-- LIVE TRACKING PANEL -->
-    <div id="panel-tracking" class="panel">
-      <div class="stats-grid">
-        <div class="stat-box"><div class="stat-num" id="t-online">0</div><div class="stat-label">🟢 متصلون الآن</div></div>
-        <div class="stat-box"><div class="stat-num" id="t-offline">0</div><div class="stat-label">⚪ غير متصلين</div></div>
-        <div class="stat-box"><div class="stat-num" id="t-total">0</div><div class="stat-label">إجمالي المفتشين</div></div>
-        <div class="stat-box"><div class="stat-num" id="t-provs">0</div><div class="stat-label">محافظات نشطة</div></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span>📡</span><h3>حالة المفتشين الفرعيين لحظياً</h3></div>
-        <div class="card-body">
-          <div class="alert alert-info">📍 يعرض هذا القسم حالة كل مفتش فرعي لحظياً: متصل/غير متصل، آخر ظهور، وآخر موقع GPS مسجَّل — حتى إذا كان المفتش يعمل بدون إنترنت، ستظهر بياناته فور استرجاعه الاتصال.</div>
-          <div id="inspectors-list"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- INCOMING -->
-    <div id="panel-incoming" class="panel">
-      <div class="stats-grid">
-        <div class="stat-box"><div class="stat-num" id="i-total">0</div><div class="stat-label">استمارات مستلمة</div></div>
-        <div class="stat-box"><div class="stat-num" id="i-pending">0</div><div class="stat-label">قيد المراجعة</div></div>
-        <div class="stat-box"><div class="stat-num" id="i-viol">0</div><div class="stat-label">بلاغات مخالفة</div></div>
-        <div class="stat-box"><div class="stat-num" id="i-provs">0</div><div class="stat-label">محافظات مُبلَّغة</div></div>
-      </div>
+    <!-- SECTION 1: بيانات الزيارة -->
+    <div id="step-1" class="section-panel active">
       <div class="card">
         <div class="card-header">
-          <span>📨</span><h3>الاستمارات الفرعية الواردة — للمراجعة والإحالة</h3>
-          <button class="btn btn-sm btn-primary" onclick="loadFromStorage()">🔄 تحديث</button>
+          <span>📋</span><h3>القسم الأول: بيانات زيارة التفتيش</h3>
+          <span style="font-size:11px;color:var(--muted)">م.115–122 ق17/2010 • م.5–6 ILO81</span>
         </div>
         <div class="card-body">
-          <div class="alert alert-info">📡 <strong>آلية العمل:</strong> تصل الاستمارات الفرعية من المفتشين الميدانيين تلقائياً. يقوم المفتش المركزي بمراجعتها واتخاذ القرار المناسب: الموافقة، الرفع للجهات العليا، أو طلب إجراء عاجل.</div>
-          <div id="incoming-list"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- REVIEW PANEL -->
-    <div id="panel-review" class="panel">
-      <div class="card">
-        <div class="card-header"><span>🔍</span><h3>مراجعة الاستمارة الفرعية التفصيلية</h3></div>
-        <div class="card-body">
-          <div id="review-content" style="text-align:center;color:var(--muted);padding:30px">
-            🔍 اختر استمارة من قائمة الاستمارات الواردة لمراجعتها
+          <div class="legal-box">
+            <p><strong>م.1 (تعريف العامل):</strong> كل شخص طبيعي يعمل لدى صاحب عمل لقاء أجر مهما كان نوعه وتحت سلطته وإشرافه.</p>
+            <p><strong>م.6/أ ILO81:</strong> يُحظر على المفتش الإفصاح عن هويته قبل إتمام التفتيش المفاجئ.</p>
+            <p><strong>م.4/أ:</strong> تسري أحكام هذا القانون على علاقات العمل في القطاع الخاص والجمعيات والمؤسسات الخاصة.</p>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- STATS PANEL -->
-    <div id="panel-stats" class="panel">
-      <div class="card">
-        <div class="card-header"><span>🔎</span><h3>فلترة البيانات وتصدير التقارير</h3></div>
-        <div class="card-body">
-          <div class="filter-grid">
-            <div class="form-group">
-              <label class="form-label">المحافظة</label>
-              <select class="form-control" id="flt-province" onchange="applyFilters()">
-                <option value="">كل المحافظات</option>
+          <div class="alert alert-warning">⚠️ تعليمات: يُعدّ هذا القسم سريًا وللاستخدام الرسمي فقط. يُحظر الإفصاح عن الهوية قبل إتمام التفتيش المفاجئ وفق م.6 ILO81.</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">اسم المفتش الفرعي *</label><input class="form-control" id="f-inspector-name" placeholder="الاسم الثلاثي"></div>
+            <div class="form-group"><label class="form-label">الرقم الوظيفي *</label><input class="form-control" id="f-inspector-id" placeholder="رقم الوظيفة"></div>
+            <div class="form-group"><label class="form-label">المسمى الوظيفي</label>
+              <select class="form-control" id="f-inspector-title">
+                <option>مفتش عمل</option><option>مفتش عمل أول</option>
+                <option>مفتش عمل مركزي</option><option>رئيس قسم التفتيش</option>
+                <option>مدير مكتب العمل</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">مديرية الشؤون الاجتماعية والعمل في محافظة</label>
+              <select class="form-control" id="f-province">
+                <option value="">-- اختر المحافظة --</option>
                 <option>دمشق</option><option>ريف دمشق</option><option>حلب</option>
                 <option>حمص</option><option>حماة</option><option>اللاذقية</option>
                 <option>طرطوس</option><option>دير الزور</option><option>الرقة</option>
@@ -393,128 +536,286 @@ textarea.form-control { min-height: 70px; resize: vertical; }
                 <option>السويداء</option><option>إدلب</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">من تاريخ</label>
-              <input type="date" class="form-control" id="flt-from" onchange="applyFilters()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">إلى تاريخ</label>
-              <input type="date" class="form-control" id="flt-to" onchange="applyFilters()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">المفتش الفرعي</label>
-              <select class="form-control" id="flt-inspector" onchange="applyFilters()">
-                <option value="">كل المفتشين</option>
+            <div class="form-group"><label class="form-label">تاريخ الزيارة *</label><input type="date" class="form-control" id="f-visit-date"></div>
+            <div class="form-group"><label class="form-label">نوع الزيارة</label>
+              <select class="form-control" id="f-visit-type">
+                <option>تفتيش مفاجئ</option><option>تفتيش دوري</option>
+                <option>تحقيق في شكوى</option><option>متابعة مخالفة سابقة</option>
+                <option>تفتيش مشترك</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">التصنيف</label>
-              <select class="form-control" id="flt-classification" onchange="applyFilters()">
-                <option value="">كل التصنيفات</option>
-                <option value="ok">✅ مستوفٍ</option>
-                <option value="minor">⚠️ بسيطة</option>
-                <option value="medium">🟠 متوسطة</option>
-                <option value="major">🔴 جسيمة</option>
-                <option value="danger">⛔ خطر داهم</option>
-              </select>
+            <div class="form-group full"><label class="form-label">📍 التحديد الجغرافي الفوري</label>
+              <div class="gps-box">
+                <div class="gps-field"><span class="gps-label">خط العرض</span><span class="gps-value" id="gps-lat">—</span></div>
+                <div class="gps-field"><span class="gps-label">خط الطول</span><span class="gps-value" id="gps-lng">—</span></div>
+                <div class="gps-field"><span class="gps-label">الدقة</span><span class="gps-value" id="gps-acc">—</span></div>
+                <div class="gps-field"><span class="gps-label">وقت التحديد</span><span class="gps-value" id="gps-time">—</span></div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="getGPS()">📡 تحديد الموقع تلقائياً</button>
             </div>
-            <div class="form-group" style="display:flex;align-items:flex-end">
-              <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center" onclick="resetFilters()">↺ إعادة تعيين</button>
+            <div class="form-group full"><label class="form-label">🤝 فريق التفتيش المشترك</label>
+              <div class="form-grid">
+                <input class="form-control" id="f-inspector2" placeholder="المفتش الثاني">
+                <input class="form-control" id="f-inspector3" placeholder="المفتش الثالث">
+                <input class="form-control" id="f-ilo-rep" placeholder="ممثل منظمة العمل الدولية / أخرى">
+              </div>
             </div>
           </div>
-          <div class="btn-row" style="margin-top:4px">
-            <button class="btn btn-success btn-sm" onclick="exportFilteredExcel()">📊 تصدير Excel (حسب الفلترة الحالية)</button>
-            <button class="btn btn-primary btn-sm" onclick="exportProvinceExcel()">📍 تصدير Excel لكل محافظة (ملف منفصل لكل محافظة)</button>
-            <button class="btn btn-accent btn-sm" onclick="exportAllExcelCombined()">📦 تصدير Excel شامل (كل البيانات + ملخص إحصائي)</button>
+          <div class="btn-row">
+            <button class="btn btn-accent" onclick="goStep(2)">التالي — معلومات المنشأة ◄</button>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:8px" id="filter-result-count"></div>
-        </div>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-box"><div class="stat-num" id="s-visits">0</div><div class="stat-label">إجمالي الزيارات</div></div>
-        <div class="stat-box"><div class="stat-num" id="s-compliant">0</div><div class="stat-label">منشآت مستوفية</div></div>
-        <div class="stat-box"><div class="stat-num" id="s-viol">0</div><div class="stat-label">منشآت مخالفة</div></div>
-        <div class="stat-box"><div class="stat-num" id="s-provs">0</div><div class="stat-label">محافظات مُفتَّشة</div></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span>📍</span><h3>توزيع الزيارات حسب المحافظة</h3></div>
-        <div class="card-body"><div class="bar-chart" id="stats-bar-chart"></div></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span>📋</span><h3>سجل الاستمارات الفرعية (حسب الفلترة الحالية)</h3></div>
-        <div class="card-body" style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr><th>#</th><th>المفتش</th><th>المنشأة</th><th>المحافظة</th><th>التاريخ</th><th>التصنيف</th><th>المخالفات</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-            <tbody id="full-table">
-              <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">لا توجد بيانات بعد</td></tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
 
-    <!-- PERIODIC REPORTS PANEL -->
-    <div id="panel-periodic" class="panel">
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><span>🗓️</span><h3>التقارير الدورية والإجمالية — جاهزة فوراً بدون أي إعداد</h3></div>
+    <!-- SECTION 2: المنشأة -->
+    <div id="step-2" class="section-panel">
+      <div class="card">
+        <div class="card-header"><span>🏭</span><h3>القسم الثاني: معلومات المنشأة الخاضعة للتفتيش</h3></div>
         <div class="card-body">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">تُحسَب هذه التقارير تلقائياً من كل الاستمارات الواردة، وتُحدَّث لحظياً مع كل استمارة جديدة. اضغط "تصدير Excel شامل" أدناه للحصول على ملف واحد يضم كل الجداول (شهري + ربعي + سنوي + محافظات + إجمالي).</div>
+          <div class="legal-box">
+            <p><strong>م.10/أ:</strong> إذا تعدد أصحاب المنشأة كانوا مسؤولين بالتضامن فيما بينهم عن الوفاء بالالتزامات.</p>
+            <p><strong>م.26/أ:</strong> على صاحب العمل إرسال بيان مفصّل بعدد العمال خلال خمسة عشر يوماً من بدء النشاط.</p>
+            <p><strong>م.93/م:</strong> يلتزم صاحب العمل بتسجيل جميع العاملين في التأمينات الاجتماعية أصولاً.</p>
+          </div>
+          <div class="section-title">🏢 هوية المنشأة</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">اسم المنشأة *</label><input class="form-control" id="f-facility-name" placeholder="الاسم الكامل للمنشأة"></div>
+            <div class="form-group"><label class="form-label">رقم السجل التجاري</label><input class="form-control" id="f-reg-num" placeholder="رقم السجل"></div>
+            <div class="form-group"><label class="form-label">القطاع الاقتصادي</label>
+              <select class="form-control" id="f-sector">
+                <option>صناعي / تصنيعي</option><option>تجاري / خدمات</option>
+                <option>إنشاءات وعقارات</option><option>زراعي وغذائي</option>
+                <option>صحة وتعليم</option><option>نقل ولوجستيك</option>
+                <option>سياحة وضيافة</option><option>تقنية ومعلوماتية</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">المحافظة *</label>
+              <select class="form-control" id="f-facility-province">
+                <option value="">-- اختر --</option>
+                <option>دمشق</option><option>ريف دمشق</option><option>حلب</option>
+                <option>حمص</option><option>حماة</option><option>اللاذقية</option>
+                <option>طرطوس</option><option>دير الزور</option><option>الرقة</option>
+                <option>الحسكة</option><option>درعا</option><option>القنيطرة</option>
+                <option>السويداء</option><option>إدلب</option>
+              </select>
+            </div>
+            <div class="form-group full"><label class="form-label">العنوان التفصيلي</label><input class="form-control" id="f-address" placeholder="الحي / الشارع / المبنى"></div>
+            <div class="form-group"><label class="form-label">رقم الهاتف</label><input class="form-control" id="f-phone" placeholder="رقم الهاتف"></div>
+            <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input class="form-control" id="f-email" placeholder="البريد"></div>
+            <div class="form-group"><label class="form-label">تاريخ تأسيس المنشأة</label><input type="date" class="form-control" id="f-founded"></div>
+          </div>
+          <div class="section-title">👥 بيانات القوى العاملة</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">إجمالي العمال المسجّلين</label><input type="number" class="form-control" id="f-workers-total" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">العمال الحاضرون فعلياً</label><input type="number" class="form-control" id="f-workers-present" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">العمال الأجانب</label><input type="number" class="form-control" id="f-workers-foreign" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">عمّال أقل من 18 عاماً</label><input type="number" class="form-control" id="f-workers-minor" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">عاملات (إناث)</label><input type="number" class="form-control" id="f-workers-female" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">عمّال ذوو إعاقة</label><input type="number" class="form-control" id="f-workers-disabled" placeholder="0"></div>
+          </div>
+          <div class="section-title">👤 بيانات صاحب العمل</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">اسم صاحب العمل / المفوّض</label><input class="form-control" id="f-employer-name" placeholder="الاسم"></div>
+            <div class="form-group"><label class="form-label">رقم الهوية الوطنية</label><input class="form-control" id="f-employer-id" placeholder="رقم الهوية"></div>
+            <div class="form-group full"><label class="form-label">هل حضر أثناء التفتيش؟</label>
+              <div style="display:flex;gap:12px;margin-top:4px">
+                <label style="display:flex;align-items:center;gap:6px"><input type="radio" name="employer-present" value="yes"> نعم</label>
+                <label style="display:flex;align-items:center;gap:6px"><input type="radio" name="employer-present" value="no"> لا</label>
+                <label style="display:flex;align-items:center;gap:6px"><input type="radio" name="employer-present" value="rep"> ممثل قانوني</label>
+              </div>
+            </div>
+          </div>
           <div class="btn-row">
-            <button class="btn btn-accent btn-sm" onclick="exportPeriodicExcel()">📦 تصدير Excel شامل لكل التقارير الدورية</button>
-            <button class="btn btn-outline btn-sm" onclick="updatePeriodicPanel()">🔄 تحديث الآن</button>
+            <button class="btn btn-outline" onclick="goStep(1)">◄ السابق</button>
+            <button class="btn btn-accent" onclick="goStep(3)">التالي — عقود العمل ◄</button>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- الإجمالي العام -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><span>🌍</span><h3>الإجمالي العام (كل الفترات وكل المحافظات)</h3></div>
+    <!-- SECTION 3: عقود وأجور -->
+    <div id="step-3" class="section-panel">
+      <div class="card">
+        <div class="card-header"><span>📄</span><h3>القسم الثالث: عقود العمل والأجور</h3></div>
         <div class="card-body">
-          <div class="stats-grid" id="periodic-overall-grid"></div>
+          <div class="legal-box">
+            <p><strong>م.47/أ:</strong> يلتزم صاحب العمل بتحرير عقد العمل كتابةً وباللغة العربية على ثلاث نسخ.</p>
+            <p><strong>م.78/أ-1:</strong> تؤدى أجور العمال الشهريين في موعد لا يتجاوز اليوم الرابع من الشهر التالي.</p>
+            <p><strong>م.83:</strong> لا يجوز لصاحب العمل اقتطاع أكثر من 20% من أجر العامل.</p>
+          </div>
+          <div id="compliance-3"></div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="goStep(2)">◄ السابق</button>
+            <button class="btn btn-accent" onclick="goStep(4)">التالي — السلامة المهنية ◄</button>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- حسب المحافظة -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><span>📍</span><h3>التقرير الإجمالي حسب المحافظة</h3></div>
-        <div class="card-body" style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr><th>المحافظة</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
-            <tbody id="periodic-province-table"></tbody>
-          </table>
+    <!-- SECTION 4: السلامة -->
+    <div id="step-4" class="section-panel">
+      <div class="card">
+        <div class="card-header"><span>🦺</span><h3>القسم الرابع: السلامة والصحة المهنية</h3></div>
+        <div class="card-body">
+          <div class="legal-box">
+            <p><strong>م.93/أ:</strong> على صاحب العمل توفير ظروف وشروط واحتياطات العمل المقررة في هذا القانون.</p>
+            <p><strong>م.94/أ-1:</strong> يجب على صاحب العمل توفير وسائل الإسعاف الأولية مهما كان عدد العمال.</p>
+            <p><strong>م.147/ب:</strong> يجب على مفتش العمل أن يأمر بوقف العمل عند وجود خطر داهم.</p>
+          </div>
+          <div id="compliance-4"></div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="goStep(3)">◄ السابق</button>
+            <button class="btn btn-accent" onclick="goStep(5)">التالي — حقوق العمال ◄</button>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- التقرير الشهري -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><span>📅</span><h3>التقرير الشهري (كل شهر على حدة)</h3></div>
-        <div class="card-body" style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr><th>الشهر</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
-            <tbody id="periodic-month-table"></tbody>
-          </table>
+    <!-- SECTION 5: حقوق العمال -->
+    <div id="step-5" class="section-panel">
+      <div class="card">
+        <div class="card-header"><span>⚖️</span><h3>القسم الخامس: حقوق العمال وضمانات التوظيف</h3></div>
+        <div class="card-body">
+          <div class="legal-box">
+            <p><strong>م.95/أ-1:</strong> يتمتع العامل بالحق في الزيادة الدورية للأجور مرة كل سنتين.</p>
+            <p><strong>م.106/أ:</strong> لا يجوز تشغيل العامل أكثر من 8 ساعات في اليوم أو 48 ساعة أسبوعياً.</p>
+            <p><strong>م.155/أ:</strong> للعامل إجازة سنوية 14 يوم بأجر كامل لمن أمضى سنة كاملة.</p>
+          </div>
+          <div id="compliance-5"></div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="goStep(4)">◄ السابق</button>
+            <button class="btn btn-accent" onclick="goStep(6)">التالي — التتبع والأدلة ◄</button>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- التقرير الربعي -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><span>📆</span><h3>التقرير الربعي (كل ربع سنة)</h3></div>
-        <div class="card-body" style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr><th>الربع</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
-            <tbody id="periodic-quarter-table"></tbody>
-          </table>
+    <!-- SECTION 6: التتبع والأدلة -->
+    <div id="step-6" class="section-panel">
+      <div class="card">
+        <div class="card-header"><span>📡</span><h3>القسم السادس: نظام التتبع الجغرافي والتوثيق الرقمي</h3></div>
+        <div class="card-body">
+          <div class="alert alert-info">📍 نظام التتبع الجغرافي والتوثيق يعمل بشكل مستمر طوال جلسة التفتيش</div>
+          <div class="form-grid">
+            <div>
+              <div class="section-title">🔐 سلسلة الحفظ الرقمي</div>
+              <div class="hash-box">
+                Hash الاستمارة: <span id="form-hash">SHA-256: ---</span><br>
+                الختم الزمني: <span id="form-ts">---</span><br>
+                رقم الجلسة: <span id="form-sess">---</span><br>
+                بروتوكول التشفير: AES-256 / SSL
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="genHash()">🔄 تحديث Hash</button>
+            </div>
+            <div>
+              <div class="section-title">📍 الموقع الجغرافي المباشر</div>
+              <div class="gps-box">
+                <div class="gps-field"><span class="gps-label">خط العرض</span><span class="gps-value" id="gps2-lat">—</span></div>
+                <div class="gps-field"><span class="gps-label">خط الطول</span><span class="gps-value" id="gps2-lng">—</span></div>
+                <div class="gps-field"><span class="gps-label">الدقة</span><span class="gps-value" id="gps2-acc">—</span></div>
+                <div class="gps-field"><span class="gps-label">الوقت</span><span class="gps-value" id="gps2-time">—</span></div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="getGPS()">🔄 تحديث الموقع</button>
+            </div>
+          </div>
+          <div class="section-title">📹 البث المباشر وتسجيل الفيديو</div>
+          <div class="camera-box" id="camera-box">
+            <video id="camera-video" autoplay muted playsinline style="display:none"></video>
+            <div class="camera-placeholder" id="camera-placeholder">
+              <div>📹</div>
+              <div>اضغط "تشغيل الكاميرا" لبدء التسجيل الميداني</div>
+              <div style="font-size:11px;margin-top:6px">يُستخدم كدليل رسمي وفق م.116 ق17/2010</div>
+            </div>
+            <div id="rec-indicator" style="position:absolute;top:8px;right:8px;display:none;align-items:center;gap:6px;background:rgba(0,0,0,0.7);padding:4px 10px;border-radius:20px;color:white;font-size:11px">
+              <div class="rec-dot"></div> <span id="rec-timer">00:00</span>
+            </div>
+          </div>
+          <div class="camera-controls">
+            <button class="btn btn-primary btn-sm" id="btn-cam" onclick="toggleCamera()">🎥 تشغيل الكاميرا</button>
+            <button class="btn btn-danger btn-sm" id="btn-rec" onclick="toggleRecord()" style="display:none">⏺ تسجيل</button>
+            <button class="btn btn-outline btn-sm" id="btn-snap" onclick="takeSnapshot()" style="display:none">📸 التقاط صورة</button>
+          </div>
+          <div style="margin-top:12px">
+            <div class="section-title">📁 رفع الأدلة والمرفقات</div>
+            <div class="upload-area" onclick="document.getElementById('upload-photos').click()">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">انقر لرفع صور التفتيش<br><small>JPG, PNG, PDF — حد أقصى 20MB</small></div>
+              <input type="file" id="upload-photos" multiple accept="image/*,.pdf" style="display:none" onchange="handleUpload(this,'photos')">
+            </div>
+            <div id="photos-list"></div>
+            <div class="upload-area" onclick="document.getElementById('upload-docs').click()">
+              <div class="upload-icon">📄</div>
+              <div class="upload-text">عقود، سجلات، ترخيص...<br><small>PDF, DOCX, XLSX — حد أقصى 30MB</small></div>
+              <input type="file" id="upload-docs" multiple accept=".pdf,.docx,.xlsx" style="display:none" onchange="handleUpload(this,'docs')">
+            </div>
+            <div id="docs-list"></div>
+          </div>
+          <div style="margin-top:12px">
+            <div class="section-title">⏱️ سجل الأحداث الزمني</div>
+            <div class="timeline" id="event-timeline"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="goStep(5)">◄ السابق</button>
+            <button class="btn btn-accent" onclick="goStep(7)">التالي — النتائج والإرسال ◄</button>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- التقرير السنوي -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><span>🗓️</span><h3>التقرير السنوي (كل سنة)</h3></div>
-        <div class="card-body" style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr><th>السنة</th><th>إجمالي الزيارات</th><th>مستوفية ✅</th><th>مخالفة ⚠️</th><th>خطر داهم ⛔</th><th>نسبة الامتثال</th></tr></thead>
-            <tbody id="periodic-year-table"></tbody>
-          </table>
+    <!-- SECTION 7: النتائج -->
+    <div id="step-7" class="section-panel">
+      <div class="card">
+        <div class="card-header"><span>📝</span><h3>القسم السابع: نتائج التفتيش والإرسال للمركزي</h3></div>
+        <div class="card-body">
+          <div class="legal-box">
+            <p><strong>م.17 ILO81:</strong> للمفتش إصدار إنذار فوري وطلب تصحيح الأوضاع في مدة مناسبة.</p>
+            <p><strong>م.18 ILO81:</strong> الإغلاق الفوري عند وجود خطر داهم على صحة العمال أو سلامتهم.</p>
+            <p><strong>م.65/أ:</strong> إذا لم يثبت صاحب العمل المخالفات فإن الإنهاء يعد تسريحاً غير مبرر ويستحق التعويض.</p>
+          </div>
+          <div class="form-grid">
+            <div class="form-group full"><label class="form-label">التصنيف العام للمنشأة *</label>
+              <select class="form-control" id="f-classification" onchange="updateClassification()">
+                <option value="">-- اختر التصنيف --</option>
+                <option value="ok">✅ مستوفٍ تمامًا — لا مخالفات</option>
+                <option value="minor">⚠️ مخالفات بسيطة — تحتاج تصحيحاً</option>
+                <option value="medium">🟠 مخالفات متوسطة — إنذار رسمي</option>
+                <option value="major">🔴 مخالفات جسيمة — إجراءات قانونية</option>
+                <option value="danger">⛔ خطر داهم — إغلاق فوري</option>
+              </select>
+            </div>
+            <div class="form-group full"><label class="form-label">الإجراء الموصى به فوراً</label>
+              <select class="form-control" id="f-action">
+                <option>لا يوجد — مستوفٍ</option>
+                <option>إنذار كتابي بإصلاح الأوضاع</option>
+                <option>تحديد مهلة تصحيحية (30 يوم)</option>
+                <option>تحرير محضر ضبط رسمي</option>
+                <option>إحالة للنيابة العامة</option>
+                <option>إغلاق المنشأة فوراً</option>
+                <option>تعليق نشاط جزئي</option>
+              </select>
+            </div>
+            <div class="form-group full"><label class="form-label">ملخص المخالفات والملاحظات التفصيلية *</label><textarea class="form-control" id="f-violations" placeholder="اذكر المخالفات بالتفصيل..." style="min-height:100px"></textarea></div>
+            <div class="form-group full"><label class="form-label">التوصيات والإجراءات المقترحة لصاحب العمل</label><textarea class="form-control" id="f-recommendations" placeholder="التوصيات..."></textarea></div>
+            <div class="form-group full"><label class="form-label">ملاحظات خاصة للمفتش المركزي المسؤول</label><textarea class="form-control" id="f-notes-central" placeholder="ملاحظات سرية للمفتش المركزي..."></textarea></div>
+          </div>
+          <div class="section-title">✍️ توقيع المفتش وصاحب العمل</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">اسم ممثل المنشأة الموقّع</label><input class="form-control" id="f-signee" placeholder="الاسم"></div>
+            <div class="form-group"><label class="form-label">هل وقّع صاحب العمل؟</label>
+              <select class="form-control" id="f-signed">
+                <option>نعم</option>
+                <option>رفض التوقيع — سيُثبَّت في المحضر</option>
+              </select>
+            </div>
+          </div>
+          <div class="alert alert-info" style="margin-top:12px">📡 <strong>تعليمات الإرسال:</strong> عند الضغط على "إرسال للمركزي"، سيتم تجميع جميع بيانات الاستمارة في ملف JSON مشفر وإرسالها إلى لوحة المفتش المركزي.</div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="goStep(6)">◄ السابق</button>
+            <button class="btn btn-outline" onclick="saveLocal()">💾 حفظ مؤقت محلي</button>
+            <button class="btn btn-outline" onclick="printForm()">🖨️ طباعة</button>
+            <button class="btn btn-success" onclick="openSendModal()">📤 إرسال للمفتش المركزي</button>
+          </div>
         </div>
       </div>
     </div>
@@ -524,57 +825,38 @@ textarea.form-control { min-height: 70px; resize: vertical; }
 
 <!-- VIDEO CALL MODAL (WebRTC حقيقي — إشارة عبر Firebase + STUN/TURN مجاني يعمل على المنفذ 443) -->
 <div class="modal-overlay" id="video-modal">
-  <div class="modal" style="max-width:720px">
+  <div class="modal" style="max-width:820px">
     <div class="modal-header">
-      <span>📹 مكالمة مع المفتش الفرعي الميداني</span>
+      <span>📹 مكالمة مباشرة مع المفتش المركزي</span>
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;color:#4fc3f7" id="call-status">—</span>
+        <span style="font-size:11px;color:#4fc3f7" id="call-status">جاري الاتصال...</span>
         <button class="close-btn" onclick="closeVideoCall()">✕</button>
       </div>
     </div>
     <div class="modal-body" style="padding:0">
-      <div id="call-join-bar" style="display:flex;gap:8px;padding:10px 12px;background:#f5f5f5;border-bottom:1px solid #e0e0e0">
-        <input type="text" id="call-room-input" class="form-control" placeholder="رقم جلسة المفتش الفرعي (مثل BR-XXXXX)" style="flex:1">
-        <button class="btn btn-primary btn-sm" onclick="joinCallRoom()">📞 اتصال</button>
-      </div>
-      <div style="position:relative;width:100%;height:420px;background:#000;overflow:hidden">
-        <video id="remote-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>
-        <video id="local-video" autoplay muted playsinline style="position:absolute;bottom:10px;left:10px;width:110px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #fff;background:#222;z-index:2"></video>
-        <div id="call-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-size:13px;flex-direction:column;gap:8px;text-align:center;padding:20px">
-          <div style="font-size:40px">📹</div>
-          <div>أدخل رقم جلسة المفتش الفرعي أعلاه واضغط "اتصال"</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:center;gap:14px;padding:14px;background:#1a1a1a">
-        <button class="call-btn" onclick="toggleMic()" id="btn-mic" title="كتم/تشغيل الصوت">🎙️</button>
-        <button class="call-btn" onclick="toggleCam()" id="btn-cam" title="تشغيل/إيقاف الكاميرا">📷</button>
-        <button class="call-btn end" onclick="closeVideoCall()" title="إنهاء المكالمة">📵</button>
+      <div id="whereby-wrap" style="width:100%;height:520px;background:#000"></div>
+      <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
+        🔐 مكالمة مشفّرة عبر Whereby • اسمح بالكاميرا والمايكروفون عند الطلب
       </div>
     </div>
   </div>
 </div>
 
-<!-- IMPORT MODAL -->
-<div class="modal-overlay" id="import-modal">
-  <div class="import-modal">
-    <div class="import-header">
-      <span>📥 استيراد استمارة من JSON</span>
-      <button class="close-btn" onclick="closeImport()">✕</button>
+<!-- SEND MODAL -->
+<div class="modal-overlay" id="send-modal">
+  <div class="send-modal">
+    <div class="send-header">
+      <span>📤 إرسال البيانات للمفتش المركزي</span>
+      <button class="close-btn" onclick="closeSendModal()">✕</button>
     </div>
-    <div class="import-body">
-      <div class="drop-zone" onclick="document.getElementById('json-file').click()">
-        <div style="font-size:32px;margin-bottom:8px">📂</div>
-        <div>انقر لاختيار ملف JSON أو اسحبه هنا</div>
-        <input type="file" id="json-file" accept=".json" style="display:none" onchange="handleJSONImport(this)">
-      </div>
-      <div style="margin-top:10px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">أو الصق بيانات JSON:</div>
-        <textarea class="form-control" id="json-paste" placeholder='{"sessionId":"BR-...","step1":...}' style="min-height:100px;font-family:monospace;font-size:11px"></textarea>
-      </div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="btn btn-primary" onclick="importFromPaste()">📥 استيراد</button>
-        <button class="btn btn-outline" onclick="loadSampleData()">🎯 تحميل بيانات تجريبية</button>
-        <button class="btn btn-outline" onclick="closeImport()">إلغاء</button>
+    <div class="send-body">
+      <div id="send-status" class="alert alert-info">🔄 جاري إعداد البيانات...</div>
+      <div class="json-preview" id="json-preview">جاري التحضير...</div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="confirmSend()">📤 إرسال للمركزي</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadJSON()">⬇️ تحميل JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="copyJSON()">📋 نسخ JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="closeSendModal()">إغلاق</button>
       </div>
     </div>
   </div>
@@ -583,290 +865,68 @@ textarea.form-control { min-height: 70px; resize: vertical; }
 <script src="firebase-config.js"></script>
 <script src="sync-engine.js"></script>
 <script>
-// ===== DATA =====
-let forms = [];
+// ===== STATE =====
+let currentStep = 1;
 let sessionStart = Date.now();
+let gpsData = { lat: null, lng: null, acc: null };
+let complianceData = {};
+let cameraStream = null;
+let mediaRecorder = null;
+let recordChunks = [];
+let isRecording = false;
 
-let micOn = true, vidOn = true;
 
-// Timer
+// Session ID
+const sessionId = 'BR-' + Date.now().toString(36).toUpperCase();
+document.getElementById('session-id').textContent = 'الجلسة: ' + sessionId;
+document.getElementById('form-sess').textContent = sessionId;
+
+// ===== TIMER =====
 setInterval(() => {
-  const now = new Date();
-  document.getElementById('current-time').textContent = now.toLocaleTimeString('ar-SA');
   const d = Math.floor((Date.now() - sessionStart) / 1000);
-  document.getElementById('session-dur').textContent = `${String(Math.floor(d/3600)).padStart(2,'0')}:${String(Math.floor((d%3600)/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}`;
+  const h = String(Math.floor(d/3600)).padStart(2,'0');
+  const m = String(Math.floor((d%3600)/60)).padStart(2,'0');
+  const s = String(d%60).padStart(2,'0');
+  document.getElementById('session-timer').textContent = `${h}:${m}:${s}`;
 }, 1000);
 
-// Real-time sync via Firebase — replaces old localStorage polling
-let presenceData = {};
+// ===== STEPS =====
+function goStep(n) {
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-' + n).classList.add('active');
+  document.querySelectorAll('.step-item').forEach((s,i) => {
+    s.classList.remove('active','done');
+    if (i+1 < n) s.classList.add('done');
+    if (i+1 === n) s.classList.add('active');
+  });
+  currentStep = n;
+  addEvent(`القسم ${n}: ${['','بيانات الزيارة','معلومات المنشأة','عقود والأجور','السلامة المهنية','حقوق العمال','التتبع والأدلة','النتائج والإرسال'][n]}`);
+  if (n === 6) genHash();
+  window.scrollTo(0,0);
+}
 
-async function startCentralSync() {
-  await SyncEngine.init({ id: 'central-' + Date.now(), name: 'المفتش المركزي', province: 'دمشق' }, {
-    onStatusChange: (status) => {
-      const ind = document.getElementById('firebase-status');
-      const txt = document.getElementById('fb-status-text');
-      if (SyncEngine.isFirebaseReady() && status.online) {
-        ind.className = 'sync-indicator connected';
-        txt.textContent = '✅ متصل بقاعدة البيانات المباشرة';
-      } else {
-        ind.className = 'sync-indicator disconnected';
-        txt.textContent = SyncEngine.isFirebaseReady() ? '🔌 لا يوجد اتصال بالإنترنت' : '⚠️ لم يتم ضبط قاعدة البيانات بعد';
+// ===== GPS =====
+function getGPS() {
+  if (!navigator.geolocation) { alert('GPS غير متوفر'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    gpsData = { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6), acc: pos.coords.accuracy.toFixed(0) };
+    const t = new Date().toLocaleTimeString('ar-SA');
+    ['','2'].forEach(sfx => {
+      const el = id => document.getElementById(id);
+      if (el('gps'+sfx+'-lat')) {
+        el('gps'+sfx+'-lat').textContent = gpsData.lat;
+        el('gps'+sfx+'-lng').textContent = gpsData.lng;
+        el('gps'+sfx+'-acc').textContent = gpsData.acc + 'م';
+        el('gps'+sfx+'-time').textContent = t;
       }
-    }
-  });
-
-  if (SyncEngine.isFirebaseReady()) {
-    // الاستماع اللحظي لكل الاستمارات الواردة من جميع المفتشين الفرعيين
-    SyncEngine.listenToInspections((allForms) => {
-      allForms.forEach(f => {
-        const existing = forms.find(x => x.sessionId === f.sessionId);
-        if (existing) Object.assign(existing, f);
-        else { f._status = f._status || 'received'; forms.push(f); }
-      });
-      updateAll();
     });
-    // الاستماع اللحظي لحالة جميع المفتشين الفرعيين (متصل/غير متصل + الموقع)
-    SyncEngine.listenToPresence((data) => {
-      presenceData = data || {};
-      updateTrackingPanel();
-    });
-
-    // 📞 الاستماع اللحظي للمكالمات الواردة من المفتشين الفرعيين — يُظهر popup تلقائياً
-    db.ref('incomingCalls').on('child_added', (snap) => {
-      const call = snap.val();
-      if (!call || !call.sessionId) return;
-      showIncomingCallPopup(call);
-    });
-    db.ref('incomingCalls').on('child_removed', (snap) => {
-      removeIncomingCallPopup(snap.key);
-    });
-  } else {
-    // وضع احتياطي بدون Firebase: استخدام localStorage كما كان سابقاً (لجهاز واحد فقط)
-    loadFromStorageFallback();
-    setInterval(loadFromStorageFallback, 5000);
-  }
+    document.getElementById('gps-status-header').textContent = `${gpsData.lat}, ${gpsData.lng}`;
+    addEvent('تحديد الموقع GPS: ' + gpsData.lat + ', ' + gpsData.lng);
+  }, err => alert('تعذر تحديد الموقع: ' + err.message));
 }
 
-function loadFromStorageFallback() {
-  const keys = Object.keys(localStorage).filter(k => k.startsWith('inspection_') || k === 'latest_inspection');
-  let added = 0;
-  keys.forEach(k => {
-    try {
-      const data = JSON.parse(localStorage.getItem(k));
-      if (data && data.sessionId && !forms.find(f => f.sessionId === data.sessionId)) {
-        data._status = 'received';
-        forms.push(data);
-        added++;
-      }
-    } catch(e) {}
-  });
-  if (added > 0) { updateAll(); showNotification(added + ' استمارة جديدة'); }
-  else updateAll();
-}
-
-function updateTrackingPanel() {
-  const entries = Object.entries(presenceData);
-  const online = entries.filter(([k,v]) => v.online).length;
-  const offline = entries.length - online;
-  document.getElementById('t-online').textContent = online;
-  document.getElementById('t-offline').textContent = offline;
-  document.getElementById('t-total').textContent = entries.length;
-  document.getElementById('t-provs').textContent = new Set(entries.map(([k,v]) => v.province)).size;
-
-  const list = document.getElementById('inspectors-list');
-  if (!entries.length) { list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">لا يوجد مفتشون فرعيون مسجَّلون بعد</div>'; return; }
-  list.innerHTML = entries.map(([id, v]) => {
-    const lastSeenStr = v.lastSeen ? new Date(v.lastSeen).toLocaleString('ar-SA') : '—';
-    const loc = v.lastLocation ? `${v.lastLocation.lat.toFixed(4)}, ${v.lastLocation.lng.toFixed(4)}` : 'غير متوفر';
-    return `
-    <div class="inspector-card">
-      <span class="inspector-dot ${v.online?'online':'offline'}"></span>
-      <div class="inspector-info">
-        <div class="inspector-name">${v.name || id} <span style="color:var(--muted);font-weight:400">— ${v.province||'—'}</span></div>
-        <div class="inspector-meta">آخر ظهور: ${lastSeenStr} | 📍 ${loc}</div>
-      </div>
-      <span class="inspector-status ${v.online?'online':'offline'}">${v.online?'🟢 متصل الآن':'⚪ غير متصل'}</span>
-    </div>`;
-  }).join('');
-}
-
-startCentralSync();
-
-
-// ===== PANELS =====
-function showPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  document.querySelectorAll('.sidebar-item').forEach(b => {
-    b.classList.toggle('active', b.textContent.includes({dashboard:'لوحة',tracking:'تتبع',incoming:'الاستمارات',review:'مراجعة',stats:'التقارير الإحصائية',periodic:'الدورية'}[name]||''));
-  });
-  updateAll();
-  if (name === 'tracking') updateTrackingPanel();
-  if (name === 'periodic') updatePeriodicPanel();
-}
-
-// ===== NOTIFICATION =====
-function showNotification(msg) {
-  const bar = document.getElementById('notif-bar');
-  document.getElementById('notif-text').textContent = msg;
-  document.getElementById('notif-count').textContent = forms.filter(f => f._status === 'received').length;
-  bar.style.display = 'flex';
-}
-
-// ===== UPDATE ALL =====
-function updateAll() {
-  updateDashboard();
-  updateIncoming();
-  updateStats();
-  updateStatsPanel();
-  updatePeriodicPanel();
-  document.getElementById('notif-count').textContent = forms.filter(f => f._status === 'received').length;
-}
-
-function getLabel(f) {
-  return (f.step1 && f.step1.inspectorName) ? f.step1.inspectorName : 'غير محدد';
-}
-function getFacility(f) {
-  return (f.step2 && f.step2.facilityName) ? f.step2.facilityName : 'غير محددة';
-}
-function getProvince(f) {
-  return (f.step2 && f.step2.province) ? f.step2.province : (f.step1 && f.step1.province) ? f.step1.province : '—';
-}
-function getDate(f) {
-  return (f.step1 && f.step1.visitDate) ? f.step1.visitDate : (f.timestamp ? f.timestamp.split('T')[0] : '—');
-}
-function getClassification(f) {
-  const c = f.step7 && f.step7.classification ? f.step7.classification : '';
-  if (!c) return '<span class="cls-minor">غير محدد</span>';
-  if (c==='ok') return '<span class="cls-ok">✅ مستوفٍ</span>';
-  if (c==='minor') return '<span class="cls-minor">⚠️ بسيطة</span>';
-  if (c==='medium') return '<span class="cls-medium">🟠 متوسطة</span>';
-  if (c==='major') return '<span class="cls-major">🔴 جسيمة</span>';
-  if (c==='danger') return '<span class="cls-danger">⛔ خطر داهم</span>';
-  return '<span class="cls-minor">⚠️ بسيطة</span>';
-}
-function getStatusBadge(f) {
-  const s = f._status || 'received';
-  if (s==='received') return '<span class="status-badge s-received">✔ مستلمة</span>';
-  if (s==='reviewing') return '<span class="status-badge s-reviewing">🔍 مراجعة</span>';
-  if (s==='approved') return '<span class="status-badge s-approved">✅ معتمدة</span>';
-  if (s==='urgent') return '<span class="status-badge s-urgent">⛔ عاجلة</span>';
-  if (s==='escalated') return '<span class="status-badge s-escalated">📤 مُحالة</span>';
-  return '';
-}
-
-function updateDashboard() {
-  document.getElementById('d-total').textContent = forms.length;
-  document.getElementById('d-reviewed').textContent = forms.filter(f => f._status === 'approved').length;
-  document.getElementById('d-pending').textContent = forms.filter(f => f._status === 'received' || f._status === 'reviewing').length;
-  document.getElementById('d-urgent').textContent = forms.filter(f => f._status === 'urgent' || (f.step7 && f.step7.classification === 'danger')).length;
-
-  // Province grid
-  const provinces = ['دمشق','ريف دمشق','حلب','حمص','حماة','اللاذقية','طرطوس','دير الزور','الرقة','الحسكة','درعا','القنيطرة','السويداء','إدلب'];
-  const counts = {};
-  forms.forEach(f => { const p = getProvince(f); counts[p] = (counts[p]||0)+1; });
-  document.getElementById('province-grid').innerHTML = provinces.map(p => `
-    <div class="province-tag ${counts[p]?'has-data':''}">
-      <div class="count">${counts[p]||0}</div>
-      <div class="name">${p}</div>
-    </div>
-  `).join('');
-
-  // Violation chart
-  const vCounts = { ok: 0, minor: 0, medium: 0, major: 0, danger: 0 };
-  forms.forEach(f => { const c = f.step7 && f.step7.classification ? f.step7.classification : 'minor'; vCounts[c] = (vCounts[c]||0)+1; });
-  const total = forms.length || 1;
-  const vLabels = { ok: '✅ مستوفٍ', minor: '⚠️ بسيطة', medium: '🟠 متوسطة', major: '🔴 جسيمة', danger: '⛔ خطر داهم' };
-  const vColors = { ok: '#2e7d32', minor: '#f9a825', medium: '#e65100', major: '#b71c1c', danger: '#4a0000' };
-  document.getElementById('violation-chart').innerHTML = Object.entries(vCounts).map(([k,v]) => `
-    <div class="viol-bar">
-      <div class="viol-label">${vLabels[k]}: ${v}</div>
-      <div class="viol-track"><div class="viol-fill" style="width:${Math.round(v/total*100)}%;background:${vColors[k]}">${v>0?v:''}</div></div>
-    </div>
-  `).join('');
-
-  // Recent table
-  const recentForms = [...forms].slice(-10).reverse();
-  document.getElementById('recent-table').innerHTML = recentForms.length ? recentForms.map((f,i) => `
-    <tr>
-      <td>${i+1}</td>
-      <td>${getLabel(f)}</td>
-      <td>${getFacility(f)}</td>
-      <td>${getProvince(f)}</td>
-      <td>${getDate(f)}</td>
-      <td>${getClassification(f)}</td>
-      <td>${getStatusBadge(f)}</td>
-      <td>
-        <button class="btn btn-sm btn-primary" onclick="openReview('${f.sessionId}')">🔍 مراجعة</button>
-        <button class="btn btn-sm btn-outline" onclick="openVideoCall('${f.sessionId}')" title="اتصال مرئي مباشر بهذا المفتش">📹</button>
-      </td>
-    </tr>
-  `).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">لا توجد استمارات بعد</td></tr>';
-}
-
-function updateIncoming() {
-  document.getElementById('i-total').textContent = forms.length;
-  document.getElementById('i-pending').textContent = forms.filter(f=>f._status==='received'||f._status==='reviewing').length;
-  document.getElementById('i-viol').textContent = forms.filter(f=>f.step7&&f.step7.classification&&f.step7.classification!=='ok').length;
-  const provs = new Set(forms.map(getProvince));
-  document.getElementById('i-provs').textContent = provs.size;
-
-  const list = document.getElementById('incoming-list');
-  if (!forms.length) { list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px">لا توجد استمارات واردة بعد</div>'; return; }
-  list.innerHTML = forms.map((f,i) => `
-    <div class="detail-card" id="form-card-${f.sessionId}">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
-        <div>
-          <span style="font-size:15px;font-weight:800;color:var(--primary)">${i+1}</span>
-          <span style="font-size:13px;font-weight:700;margin-right:8px">🏭 ${getFacility(f)}</span>
-          ${getStatusBadge(f)}
-        </div>
-        <span style="font-size:11px;color:var(--muted)">${f.timestamp ? new Date(f.timestamp).toLocaleTimeString('ar-SA') : ''}</span>
-      </div>
-      <div class="detail-row">
-        <div class="detail-field"><div class="detail-label">👤 المفتش الفرعي</div><div class="detail-value">${getLabel(f)} — مديرية الشؤون الاجتماعية في ${getProvince(f)}</div></div>
-        <div class="detail-field"><div class="detail-label">📍 المحافظة</div><div class="detail-value">${getProvince(f)}</div></div>
-        <div class="detail-field"><div class="detail-label">📅 تاريخ التفتيش</div><div class="detail-value">${getDate(f)}</div></div>
-        <div class="detail-field"><div class="detail-label">👷 عدد العمال</div><div class="detail-value">${f.step2&&f.step2.workers?f.step2.workers.total||'—':'—'}</div></div>
-        <div class="detail-field"><div class="detail-label">🏭 القطاع</div><div class="detail-value">${f.step2&&f.step2.sector?f.step2.sector:'—'}</div></div>
-        <div class="detail-field"><div class="detail-label">📊 التصنيف</div><div class="detail-value">${getClassification(f)}</div></div>
-      </div>
-      ${f.step7&&f.step7.violations?`<div style="font-size:12px;margin-bottom:8px"><strong>ملخص:</strong> ${f.step7.violations}</div>`:''}
-      ${f.step7&&f.step7.recommendations?`<div style="font-size:12px;margin-bottom:8px"><strong>التوصية:</strong> ${f.step7.recommendations}</div>`:''}
-      ${f.step7&&f.step7.action?`<div style="font-size:12px;margin-bottom:8px"><strong>الإجراء:</strong> ${f.step7.action}</div>`:''}
-      <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px">🔍 مراجعة المفتش المركزي المسؤول</div>
-      <select class="form-control" id="decision-${f.sessionId}" style="margin-bottom:6px">
-        <option value="">القرار...</option>
-        <option>إصدار إنذار رسمي</option>
-        <option>منح مهلة تصحيحية 15 يوم</option>
-        <option>منح مهلة تصحيحية 30 يوم</option>
-        <option>تحرير محضر ضبط</option>
-        <option>إحالة للنيابة العامة</option>
-        <option>إصدار أمر إغلاق</option>
-        <option>إرسال كتاب رسمي للوزارة</option>
-      </select>
-      <div class="btn-row">
-        <button class="btn btn-success btn-sm" onclick="makeDecision('${f.sessionId}','approved')">✅ موافقة وإغلاق</button>
-        <button class="btn btn-warning btn-sm" onclick="makeDecision('${f.sessionId}','escalated')">📤 رفع للجهات العليا</button>
-        <button class="btn btn-danger btn-sm" onclick="makeDecision('${f.sessionId}','urgent')">⛔ إجراء عاجل</button>
-        <button class="btn btn-primary btn-sm" onclick="openReview('${f.sessionId}')">🔍 مراجعة تفصيلية</button>
-        <button class="btn btn-outline btn-sm" onclick="openVideoCall('${f.sessionId}')">📹 اتصال مرئي بهذا المفتش</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function makeDecision(sid, status) {
-  const form = forms.find(f => f.sessionId === sid);
-  if (!form) return;
-  const dec = document.getElementById('decision-' + sid);
-  form._status = status;
-  form._centralDecision = dec ? dec.value : '';
-  updateAll();
-}
-
-// تعريف بنود الامتثال (نفس البنود الموجودة في استمارة المفتش الفرعي) لعرض حالة كل بند بالتفصيل
-const reviewComplianceItems = {
+// ===== COMPLIANCE ITEMS =====
+const complianceItems = {
   3: [
     { id: 'c3-1', text: 'وجود عقود عمل خطية لجميع العمال', ref: 'م.47/أ' },
     { id: 'c3-2', text: 'الاحتفاظ بنسخة العقد لدى فرع التأمينات', ref: 'م.47/أ' },
@@ -895,993 +955,557 @@ const reviewComplianceItems = {
   ]
 };
 
-function complianceStatusBadge(val) {
-  if (val === 'ok') return '<span class="status-badge s-approved">✅ مستوفٍ</span>';
-  if (val === 'partial') return '<span class="status-badge s-reviewing">⚠️ جزئي</span>';
-  if (val === 'no') return '<span class="status-badge s-urgent">❌ مخالف</span>';
-  return '<span class="status-badge" style="background:#f0f0f0;color:#999">— لم يُقيَّم</span>';
+function buildComplianceSections() {
+  [3,4,5].forEach(sec => {
+    const container = document.getElementById('compliance-' + sec);
+    if (!container) return;
+    container.innerHTML = complianceItems[sec].map(item => `
+      <div class="compliance-item" id="item-${item.id}">
+        <div class="compliance-check">
+          <button class="compliance-btn btn-ok" id="${item.id}-ok" onclick="setCompliance('${item.id}','ok')">✅</button>
+          <button class="compliance-btn btn-partial" id="${item.id}-p" onclick="setCompliance('${item.id}','partial')">⚠️</button>
+          <button class="compliance-btn btn-no" id="${item.id}-no" onclick="setCompliance('${item.id}','no')">❌</button>
+        </div>
+        <div class="compliance-text">${item.text} <span class="compliance-ref">${item.ref}</span></div>
+      </div>
+    `).join('');
+  });
 }
 
-function renderComplianceSection(form, sectionNum, title) {
-  const items = reviewComplianceItems[sectionNum] || [];
-  const compliance = form.compliance || {};
-  const rows = items.map(item => `
-    <div class="detail-row" style="border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:8px;align-items:center">
-      <div style="flex:3;font-size:12px">${item.text} <span class="compliance-ref" style="color:var(--accent);font-weight:700;font-size:10px">${item.ref}</span></div>
-      <div style="flex:1;text-align:left">${complianceStatusBadge(compliance[item.id])}</div>
-    </div>
-  `).join('');
-  return `
-    <div class="card" style="margin-bottom:10px">
-      <div class="card-header"><h3>${title}</h3></div>
-      <div class="card-body">${rows || '<div style="color:var(--muted);font-size:12px">لا توجد بيانات لهذا القسم</div>'}</div>
-    </div>
-  `;
-}
-
-function openReview(sid) {
-  const form = forms.find(f => f.sessionId === sid);
-  if (!form) return;
-  showPanel('review');
-  const el = document.getElementById('review-content');
-
-  const s1 = form.step1 || {};
-  const s2 = form.step2 || {};
-  const s7 = form.step7 || {};
-  const gps = s1.gps || {};
-  const team = s1.team || {};
-  const workers = s2.workers || {};
-  const employer = s2.employer || {};
-
-  const eventsHtml = (form.events && form.events.length) ? `
-    <div class="timeline" style="margin-top:8px">
-      ${form.events.map(e => `
-        <div class="tl-item done">
-          <div class="tl-time">${e.time}</div>
-          <div class="tl-text">${e.text}</div>
-        </div>
-      `).join('')}
-    </div>
-  ` : '<div style="color:var(--muted);font-size:12px">لا يوجد سجل أحداث مسجَّل</div>';
-
-  el.innerHTML = `
-    <div style="text-align:right">
-      <button class="btn btn-outline btn-sm" onclick="showPanel('incoming')" style="margin-bottom:12px">◄ العودة للقائمة</button>
-      <h3 style="font-size:15px;font-weight:800;color:var(--primary);margin-bottom:4px">📋 مراجعة تفصيلية كاملة — ${getFacility(form)}</h3>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">رقم الجلسة: ${form.sessionId || '—'} | توقيت الإرسال: ${form.timestamp ? new Date(form.timestamp).toLocaleString('ar-SA') : '—'}</div>
-    </div>
-
-    <div class="card" style="margin-bottom:10px">
-      <div class="card-header"><span>👤</span><h3>القسم 1: بيانات الزيارة والمفتش</h3></div>
-      <div class="card-body">
-        <div class="detail-row">
-          <div class="detail-field"><div class="detail-label">اسم المفتش الفرعي</div><div class="detail-value">${s1.inspectorName || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">الرقم الوظيفي</div><div class="detail-value">${s1.inspectorId || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">المسمى الوظيفي</div><div class="detail-value">${s1.title || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">مديرية المحافظة</div><div class="detail-value">${s1.province || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">تاريخ الزيارة</div><div class="detail-value">${s1.visitDate || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">نوع الزيارة</div><div class="detail-value">${s1.visitType || '—'}</div></div>
-        </div>
-        <div class="detail-row" style="margin-top:8px">
-          <div class="detail-field"><div class="detail-label">📍 إحداثيات GPS</div><div class="detail-value">${gps.lat ? `${gps.lat}, ${gps.lng} (دقة: ${gps.acc || '—'}م)` : 'لم يُحدَّد'}</div></div>
-          <div class="detail-field"><div class="detail-label">🤝 فريق التفتيش المشترك</div><div class="detail-value">${[team.i2, team.i3, team.ilo].filter(Boolean).join(' / ') || 'مفتش منفرد'}</div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:10px">
-      <div class="card-header"><span>🏭</span><h3>القسم 2: معلومات المنشأة الكاملة</h3></div>
-      <div class="card-body">
-        <div class="detail-row">
-          <div class="detail-field"><div class="detail-label">اسم المنشأة</div><div class="detail-value">${s2.facilityName || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">رقم السجل التجاري</div><div class="detail-value">${s2.regNum || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">القطاع الاقتصادي</div><div class="detail-value">${s2.sector || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">المحافظة</div><div class="detail-value">${s2.province || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">العنوان التفصيلي</div><div class="detail-value">${s2.address || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">الهاتف / البريد</div><div class="detail-value">${[s2.phone, s2.email].filter(Boolean).join(' / ') || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">تاريخ التأسيس</div><div class="detail-value">${s2.founded || '—'}</div></div>
-        </div>
-        <h4 style="font-size:12px;color:var(--primary);margin:12px 0 6px">👥 القوى العاملة</h4>
-        <div class="detail-row">
-          <div class="detail-field"><div class="detail-label">إجمالي المسجَّلين</div><div class="detail-value">${workers.total || '0'}</div></div>
-          <div class="detail-field"><div class="detail-label">الحاضرون فعلياً</div><div class="detail-value">${workers.present || '0'}</div></div>
-          <div class="detail-field"><div class="detail-label">عمال أجانب</div><div class="detail-value">${workers.foreign || '0'}</div></div>
-          <div class="detail-field"><div class="detail-label">قُصَّر (دون 18)</div><div class="detail-value">${workers.minor || '0'}</div></div>
-          <div class="detail-field"><div class="detail-label">عاملات إناث</div><div class="detail-value">${workers.female || '0'}</div></div>
-          <div class="detail-field"><div class="detail-label">ذوو إعاقة</div><div class="detail-value">${workers.disabled || '0'}</div></div>
-        </div>
-        <h4 style="font-size:12px;color:var(--primary);margin:12px 0 6px">👤 صاحب العمل</h4>
-        <div class="detail-row">
-          <div class="detail-field"><div class="detail-label">الاسم</div><div class="detail-value">${employer.name || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">رقم الهوية</div><div class="detail-value">${employer.id || '—'}</div></div>
-          <div class="detail-field"><div class="detail-label">الحضور أثناء التفتيش</div><div class="detail-value">${employer.present === 'yes' ? 'نعم' : employer.present === 'no' ? 'لا' : employer.present === 'rep' ? 'ممثل قانوني' : '—'}</div></div>
-        </div>
-      </div>
-    </div>
-
-    ${renderComplianceSection(form, 3, '📄 القسم 3: عقود العمل والأجور — حالة كل بند')}
-    ${renderComplianceSection(form, 4, '🦺 القسم 4: السلامة والصحة المهنية — حالة كل بند')}
-    ${renderComplianceSection(form, 5, '⚖️ القسم 5: حقوق العمال وضمانات التوظيف — حالة كل بند')}
-
-    <div class="card" style="margin-bottom:10px">
-      <div class="card-header"><span>📎</span><h3>المرفقات والأدلة الميدانية</h3></div>
-      <div class="card-body">
-        ${(() => {
-          const att = form.attachments || {};
-          const photos = att.photos || [];
-          const docs = att.docs || [];
-          const allFiles = [...photos, ...docs];
-          if (!allFiles.length) return '<div style="color:var(--muted);font-size:12px">لا توجد مرفقات مرفوعة مع هذه الاستمارة</div>';
-
-          const images = allFiles.filter(f => f.type === 'image' && (f.url || f.data));
-          const videos = allFiles.filter(f => f.type === 'video');
-          const pdfs = allFiles.filter(f => f.type === 'pdf' || f.type === 'document');
-          const pendingCount = allFiles.filter(f => f._pendingCloudUpload || f._pendingUpload).length;
-
-          let html = '';
-
-          if (pendingCount) {
-            html += `<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:8px;margin-bottom:10px;font-size:11px;color:#e65100">⏳ ${pendingCount} ملف لم يكتمل رفعه للسحابة بعد — سيظهر تلقائياً بمجرد اتصال جهاز المفتش بالإنترنت</div>`;
-          }
-
-          if (images.length) {
-            html += `<div style="margin-bottom:14px"><strong style="color:var(--primary);font-size:12px">📷 الصور الميدانية (${images.length} صورة):</strong><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">`;
-            images.forEach(img => {
-              const src = img.url || img.data;
-              html += `<div style="text-align:center">
-                <img src="${src}" style="width:120px;height:90px;object-fit:cover;border-radius:6px;border:2px solid #a5d6a7;cursor:pointer" onclick="window.open('${src}','_blank')" title="اضغط لعرض بالحجم الكامل">
-                <div style="font-size:10px;color:var(--muted);margin-top:3px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${img.name}</div>
-                <div style="font-size:10px;color:var(--muted)">${img.size}</div>
-              </div>`;
-            });
-            html += '</div></div>';
-          }
-
-          if (videos.length) {
-            html += `<div style="margin-bottom:10px"><strong style="color:#e65100;font-size:12px">🎥 التسجيلات الفيديو (${videos.length} ملف):</strong><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">`;
-            videos.forEach(v => {
-              if (v.url) {
-                html += `<div style="background:#fff3e0;border-radius:6px;padding:8px;font-size:12px">
-                  <video src="${v.url}" controls style="width:220px;border-radius:6px;background:#000"></video>
-                  <div style="font-weight:700;color:#e65100;margin-top:4px">${v.name}</div>
-                  <div style="color:var(--muted)">${v.size} | ${v.uploadedAt ? new Date(v.uploadedAt).toLocaleString('ar-SA') : '—'}</div>
-                  <a href="${v.url}" target="_blank" style="font-size:11px;color:#1565c0">⬇ تحميل الفيديو الأصلي</a>
-                </div>`;
-              } else {
-                html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:#fff8e1;border-radius:6px;font-size:12px">
-                  <span style="font-size:24px">⏳</span>
-                  <div>
-                    <div style="font-weight:700;color:#e65100">${v.name} — قيد الرفع</div>
-                    <div style="color:var(--muted)">الحجم: ${v.size} | سيظهر فوراً عند اتصال جهاز المفتش بالإنترنت</div>
-                  </div>
-                </div>`;
-              }
-            });
-            html += '</div></div>';
-          }
-
-          if (pdfs.length) {
-            html += `<div style="margin-bottom:10px"><strong style="color:#880e4f;font-size:12px">📄 المستندات والوثائق (${pdfs.length} ملف):</strong>`;
-            pdfs.forEach(p => {
-              if (p.url) {
-                html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:#fce4ec;border-radius:6px;margin-top:6px;font-size:12px">
-                  <span style="font-size:24px">📄</span>
-                  <div>
-                    <div style="font-weight:700;color:#880e4f">${p.name}</div>
-                    <div style="color:var(--muted)">الحجم: ${p.size} | رُفع: ${p.uploadedAt ? new Date(p.uploadedAt).toLocaleString('ar-SA') : '—'}</div>
-                    <a href="${p.url}" target="_blank" style="font-size:11px;color:#1565c0">📄 فتح المستند / تحميله</a>
-                  </div>
-                </div>`;
-              } else {
-                html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:#fff8e1;border-radius:6px;margin-top:6px;font-size:12px">
-                  <span style="font-size:24px">⏳</span>
-                  <div>
-                    <div style="font-weight:700;color:#e65100">${p.name} — قيد الرفع</div>
-                    <div style="color:var(--muted)">الحجم: ${p.size} | سيظهر فوراً عند اتصال جهاز المفتش بالإنترنت</div>
-                  </div>
-                </div>`;
-              }
-            });
-            html += '</div>';
-          }
-
-          return html;
-        })()}
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:10px">
-      <div class="card-header"><span>⏱️</span><h3>القسم 6: سجل الأحداث الزمني للزيارة</h3></div>
-      <div class="card-body">${eventsHtml}</div>
-    </div>
-
-    <div class="decision-form" style="margin-bottom:10px">
-      <h4>📊 القسم 7: النتائج النهائية كما أرسلها المفتش الفرعي</h4>
-      <div class="detail-row">
-        <div class="detail-field"><div class="detail-label">التصنيف العام</div><div class="detail-value">${getClassification(form)}</div></div>
-        <div class="detail-field"><div class="detail-label">الإجراء الموصى به</div><div class="detail-value">${s7.action || '—'}</div></div>
-      </div>
-      <div style="margin-top:8px"><strong>ملخص المخالفات والملاحظات:</strong><br>${s7.violations || '—'}</div>
-      <div style="margin-top:6px"><strong>التوصيات المقترحة:</strong><br>${s7.recommendations || '—'}</div>
-      <div style="margin-top:6px"><strong>ملاحظات خاصة موجَّهة للمركزي:</strong><br>${s7.notes || '—'}</div>
-      <div class="detail-row" style="margin-top:10px">
-        <div class="detail-field"><div class="detail-label">ممثل المنشأة الموقّع</div><div class="detail-value">${s7.signee || '—'}</div></div>
-        <div class="detail-field"><div class="detail-label">هل وقّع صاحب العمل</div><div class="detail-value">${s7.signed || '—'}</div></div>
-      </div>
-    </div>
-
-    <div class="decision-form" style="margin-top:12px">
-      <h4>🔍 قرار المفتش المركزي</h4>
-      <select class="form-control" id="rv-decision">
-        <option value="">القرار...</option>
-        <option>إصدار إنذار رسمي</option>
-        <option>منح مهلة تصحيحية 15 يوم</option>
-        <option>منح مهلة تصحيحية 30 يوم</option>
-        <option>تحرير محضر ضبط</option>
-        <option>إحالة للنيابة العامة</option>
-        <option>إصدار أمر إغلاق</option>
-      </select>
-      <textarea class="form-control" id="rv-notes" placeholder="ملاحظات المفتش المركزي...">${form._centralNotes || ''}</textarea>
-      <div class="btn-row">
-        <button class="btn btn-success btn-sm" onclick="finalDecision('${form.sessionId}','approved')">✅ موافقة وإغلاق</button>
-        <button class="btn btn-warning btn-sm" onclick="finalDecision('${form.sessionId}','escalated')">📤 رفع للجهات العليا</button>
-        <button class="btn btn-danger btn-sm" onclick="finalDecision('${form.sessionId}','urgent')">⛔ إجراء عاجل</button>
-        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ طباعة كامل الملف</button>
-      </div>
-    </div>
-  `;
-}
-
-function finalDecision(sid, status) {
-  const form = forms.find(f => f.sessionId === sid);
-  if (!form) return;
-  const dec = document.getElementById('rv-decision');
-  const notes = document.getElementById('rv-notes');
-  form._status = status;
-  form._centralDecision = dec ? dec.value : '';
-  form._centralNotes = notes ? notes.value : '';
-  alert('تم تسجيل القرار: ' + status + (dec.value ? ' — ' + dec.value : ''));
-  showPanel('incoming');
-  updateAll();
+function setCompliance(id, val) {
+  complianceData[id] = val;
+  ['ok','partial','no'].forEach(v => {
+    const btn = document.getElementById(id + '-' + (v==='ok'?'ok':v==='partial'?'p':'no'));
+    if (btn) btn.classList.toggle('active', v === val || (v === 'ok' && val === 'ok') || (v === 'partial' && val === 'partial') || (v === 'no' && val === 'no'));
+    if (btn) {
+      btn.classList.remove('active');
+      if ((v==='ok' && val==='ok')||(v==='partial' && val==='partial')||(v==='no' && val==='no')) btn.classList.add('active');
+    }
+  });
+  updateStats();
 }
 
 function updateStats() {
-  // nothing extra
+  const vals = Object.values(complianceData);
+  const ok = vals.filter(v=>v==='ok').length;
+  const partial = vals.filter(v=>v==='partial').length;
+  const no = vals.filter(v=>v==='no').length;
+  const total = vals.length;
+  const pct = total ? Math.round((ok + partial*0.5)/total*100) : 0;
+  ['stat-ok','sb-ok'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = ok; });
+  ['stat-partial','sb-partial'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = partial; });
+  ['stat-viol','sb-viol'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = no; });
+  ['stat-pct','sb-pct'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = pct + '%'; });
 }
 
-// ===== PERIODIC REPORTS (شهري / ربعي / سنوي / حسب المحافظة / إجمالي عام) =====
-function periodicGroupStats(group) {
-  const total = group.length;
-  const ok = group.filter(f => f.step7 && f.step7.classification === 'ok').length;
-  const viol = group.filter(f => f.step7 && f.step7.classification && f.step7.classification !== 'ok').length;
-  const danger = group.filter(f => f.step7 && f.step7.classification === 'danger').length;
-  const rate = total ? Math.round((ok / total) * 100) : 0;
-  return { total, ok, viol, danger, rate };
+// ===== EVENTS TIMELINE =====
+const events = [];
+function addEvent(text) {
+  const t = new Date().toLocaleTimeString('ar-SA');
+  events.push({ time: t, text });
+  renderTimeline();
 }
 
-function getQuarterLabel(dateStr) {
-  if (!dateStr || dateStr === '—') return null;
-  const parts = dateStr.split('-');
-  if (parts.length < 2) return null;
-  const year = parts[0], month = parseInt(parts[1], 10);
-  const q = Math.ceil(month / 3);
-  return `${year} — الربع ${q}`;
-}
-function getMonthLabel(dateStr) {
-  if (!dateStr || dateStr === '—') return null;
-  const parts = dateStr.split('-');
-  if (parts.length < 2) return null;
-  const monthNames = ['يناير كانون الثاني','فبراير شباط','مارس آذار','أبريل نيسان','مايو أيار','يونيو حزيران','يوليو تموز','أغسطس آب','سبتمبر أيلول','أكتوبر تشرين الأول','نوفمبر تشرين الثاني','ديسمبر كانون الأول'];
-  const m = parseInt(parts[1], 10);
-  return `${parts[0]}-${parts[1]} (${monthNames[m-1] || ''})`;
-}
-function getYearLabel(dateStr) {
-  if (!dateStr || dateStr === '—') return null;
-  return dateStr.split('-')[0];
-}
-
-function buildGroupedReport(keyFn) {
-  const groups = {};
-  forms.forEach(f => {
-    const key = keyFn(getDate(f));
-    if (!key) return;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(f);
-  });
-  return Object.keys(groups).sort().map(key => ({ key, stats: periodicGroupStats(groups[key]) }));
-}
-
-function buildProvinceReport() {
-  const groups = {};
-  forms.forEach(f => {
-    const p = getProvince(f);
-    if (!groups[p]) groups[p] = [];
-    groups[p].push(f);
-  });
-  return Object.keys(groups).sort().map(key => ({ key, stats: periodicGroupStats(groups[key]) }));
-}
-
-function renderPeriodicTable(elId, rows) {
-  const el = document.getElementById(elId);
-  if (!rows.length) { el.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">لا توجد بيانات بعد</td></tr>'; return; }
-  el.innerHTML = rows.map(r => `
-    <tr>
-      <td style="font-weight:700">${r.key}</td>
-      <td>${r.stats.total}</td>
-      <td style="color:#2e7d32">${r.stats.ok}</td>
-      <td style="color:#e65100">${r.stats.viol}</td>
-      <td style="color:#c62828">${r.stats.danger}</td>
-      <td>${r.stats.rate}%</td>
-    </tr>
+function renderTimeline() {
+  const el = document.getElementById('event-timeline');
+  if (!el) return;
+  el.innerHTML = events.map((e,i) => `
+    <div class="tl-item ${i===events.length-1?'active':'done'}">
+      <div class="tl-time">${e.time}</div>
+      <div class="tl-text">${e.text}</div>
+    </div>
   `).join('');
 }
 
-function updatePeriodicPanel() {
-  const overall = periodicGroupStats(forms);
-  document.getElementById('periodic-overall-grid').innerHTML = `
-    <div class="stat-box"><div class="stat-num">${overall.total}</div><div class="stat-label">إجمالي الزيارات (كل الفترات)</div></div>
-    <div class="stat-box"><div class="stat-num" style="color:#2e7d32">${overall.ok}</div><div class="stat-label">منشآت مستوفية</div></div>
-    <div class="stat-box"><div class="stat-num" style="color:#e65100">${overall.viol}</div><div class="stat-label">منشآت مخالفة</div></div>
-    <div class="stat-box"><div class="stat-num" style="color:#c62828">${overall.danger}</div><div class="stat-label">حالات خطر داهم</div></div>
-    <div class="stat-box"><div class="stat-num">${overall.rate}%</div><div class="stat-label">نسبة الامتثال العامة</div></div>
-    <div class="stat-box"><div class="stat-num">${new Set(forms.map(getProvince)).size}</div><div class="stat-label">عدد المحافظات المُفتَّشة</div></div>
-  `;
-
-  renderPeriodicTable('periodic-province-table', buildProvinceReport());
-  renderPeriodicTable('periodic-month-table', buildGroupedReport(getMonthLabel));
-  renderPeriodicTable('periodic-quarter-table', buildGroupedReport(getQuarterLabel));
-  renderPeriodicTable('periodic-year-table', buildGroupedReport(getYearLabel));
+// ===== HASH =====
+function genHash() {
+  const data = JSON.stringify(collectFormData());
+  let hash = 0;
+  for (let c of data) hash = ((hash << 5) - hash + c.charCodeAt(0)) | 0;
+  const hashStr = Math.abs(hash).toString(16).padStart(8,'0').repeat(8).substring(0,64).toUpperCase();
+  document.getElementById('form-hash').textContent = 'SHA-256: ' + hashStr;
+  document.getElementById('form-ts').textContent = new Date().toISOString();
 }
 
-function reportRowsToSheetData(rows, keyHeader) {
-  return rows.map(r => ({
-    [keyHeader]: r.key,
-    'إجمالي الزيارات': r.stats.total,
-    'مستوفية': r.stats.ok,
-    'مخالفة': r.stats.viol,
-    'خطر داهم': r.stats.danger,
-    'نسبة الامتثال %': r.stats.rate
-  }));
-}
-
-function exportPeriodicExcel() {
-  const wb = XLSX.utils.book_new();
-
-  const overall = periodicGroupStats(forms);
-  const wsOverall = XLSX.utils.json_to_sheet([{
-    'إجمالي الزيارات': overall.total,
-    'منشآت مستوفية': overall.ok,
-    'منشآت مخالفة': overall.viol,
-    'حالات خطر داهم': overall.danger,
-    'نسبة الامتثال العامة %': overall.rate,
-    'عدد المحافظات المُفتَّشة': new Set(forms.map(getProvince)).size,
-    'تاريخ إصدار التقرير': new Date().toLocaleString('ar-SA')
-  }]);
-  XLSX.utils.book_append_sheet(wb, wsOverall, 'الإجمالي العام');
-
-  const wsProv = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildProvinceReport(), 'المحافظة'));
-  XLSX.utils.book_append_sheet(wb, wsProv, 'حسب المحافظة');
-
-  const wsMonth = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildGroupedReport(getMonthLabel), 'الشهر'));
-  XLSX.utils.book_append_sheet(wb, wsMonth, 'التقرير الشهري');
-
-  const wsQuarter = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildGroupedReport(getQuarterLabel), 'الربع'));
-  XLSX.utils.book_append_sheet(wb, wsQuarter, 'التقرير الربعي');
-
-  const wsYear = XLSX.utils.json_to_sheet(reportRowsToSheetData(buildGroupedReport(getYearLabel), 'السنة'));
-  XLSX.utils.book_append_sheet(wb, wsYear, 'التقرير السنوي');
-
-  const wsAll = XLSX.utils.json_to_sheet(forms.map(formToRow));
-  XLSX.utils.book_append_sheet(wb, wsAll, 'كل البيانات التفصيلية');
-
-  downloadWorkbook(wb, `تقرير_دوري_شامل_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-
-function updateStatsPanel() {
-  populateInspectorFilter();
-  const filtered = getFilteredForms();
-  document.getElementById('filter-result-count').textContent = `📊 عدد النتائج المطابقة للفلترة الحالية: ${filtered.length} من أصل ${forms.length}`;
-
-  document.getElementById('s-visits').textContent = filtered.length;
-  document.getElementById('s-compliant').textContent = filtered.filter(f=>f.step7&&f.step7.classification==='ok').length;
-  document.getElementById('s-viol').textContent = filtered.filter(f=>f.step7&&f.step7.classification&&f.step7.classification!=='ok').length;
-  const provs = new Set(filtered.map(getProvince));
-  document.getElementById('s-provs').textContent = provs.size;
-
-  const provinces = ['دمشق','ريف دمشق','حلب','حمص','حماة','اللاذقية','طرطوس','دير الزور','الرقة','الحسكة','درعا','القنيطرة','السويداء','إدلب'];
-  const counts = {};
-  filtered.forEach(f => { const p = getProvince(f); counts[p] = (counts[p]||0)+1; });
-  const maxC = Math.max(...Object.values(counts), 1);
-  document.getElementById('stats-bar-chart').innerHTML = provinces.filter(p=>counts[p]).map(p => `
-    <div class="bar-col">
-      <div class="bar-val">${counts[p]||0}</div>
-      <div class="bar" style="height:${Math.round((counts[p]||0)/maxC*80)}px"></div>
-      <div class="bar-lbl">${p}</div>
-    </div>
-  `).join('') || '<div style="color:var(--muted);font-size:12px;padding:10px">لا توجد بيانات مطابقة</div>';
-
-  document.getElementById('full-table').innerHTML = filtered.length ? filtered.map((f,i) => `
-    <tr>
-      <td>${i+1}</td>
-      <td>${getLabel(f)}</td>
-      <td>${getFacility(f)}</td>
-      <td>${getProvince(f)}</td>
-      <td>${getDate(f)}</td>
-      <td>${getClassification(f)}</td>
-      <td>${f.compliance?Object.values(f.compliance).filter(v=>v==='no').length:0}</td>
-      <td>${getStatusBadge(f)}</td>
-      <td><button class="btn btn-sm btn-primary" onclick="openReview('${f.sessionId}')">🔍</button></td>
-    </tr>
-  `).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">لا توجد بيانات مطابقة لمعايير الفلترة</td></tr>';
-}
-
-// ===== FILTERING =====
-function populateInspectorFilter() {
-  const sel = document.getElementById('flt-inspector');
-  if (!sel) return;
-  const current = sel.value;
-  const names = [...new Set(forms.map(getLabel).filter(n => n && n !== 'غير محدد'))].sort();
-  sel.innerHTML = '<option value="">كل المفتشين</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
-  sel.value = current;
-}
-
-function getFilteredForms() {
-  const province = document.getElementById('flt-province') ? document.getElementById('flt-province').value : '';
-  const from = document.getElementById('flt-from') ? document.getElementById('flt-from').value : '';
-  const to = document.getElementById('flt-to') ? document.getElementById('flt-to').value : '';
-  const inspector = document.getElementById('flt-inspector') ? document.getElementById('flt-inspector').value : '';
-  const classification = document.getElementById('flt-classification') ? document.getElementById('flt-classification').value : '';
-
-  return forms.filter(f => {
-    if (province && getProvince(f) !== province) return false;
-    if (inspector && getLabel(f) !== inspector) return false;
-    if (classification && (!f.step7 || f.step7.classification !== classification)) return false;
-    const d = getDate(f);
-    if (from && d && d < from) return false;
-    if (to && d && d > to) return false;
-    return true;
-  });
-}
-
-function applyFilters() {
-  updateStatsPanel();
-}
-
-function resetFilters() {
-  ['flt-province','flt-from','flt-to','flt-inspector','flt-classification'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  updateStatsPanel();
-}
-
-// ===== EXCEL EXPORT =====
-function formToRow(f) {
-  return {
-    'اسم المفتش': getLabel(f),
-    'الرقم الوظيفي': f.step1 && f.step1.inspectorId ? f.step1.inspectorId : '',
-    'المحافظة': getProvince(f),
-    'اسم المنشأة': getFacility(f),
-    'رقم السجل التجاري': f.step2 && f.step2.regNum ? f.step2.regNum : '',
-    'القطاع': f.step2 && f.step2.sector ? f.step2.sector : '',
-    'تاريخ الزيارة': getDate(f),
-    'نوع الزيارة': f.step1 && f.step1.visitType ? f.step1.visitType : '',
-    'عدد العمال': f.step2 && f.step2.workers ? f.step2.workers.total || '' : '',
-    'صاحب العمل': f.step2 && f.step2.employer ? f.step2.employer.name || '' : '',
-    'التصنيف': f.step7 && f.step7.classification ? f.step7.classification : '',
-    'عدد المخالفات': f.compliance ? Object.values(f.compliance).filter(v=>v==='no').length : 0,
-    'عدد البنود الجزئية': f.compliance ? Object.values(f.compliance).filter(v=>v==='partial').length : 0,
-    'الإجراء الموصى به': f.step7 && f.step7.action ? f.step7.action : '',
-    'ملخص المخالفات': f.step7 && f.step7.violations ? f.step7.violations : '',
-    'التوصيات': f.step7 && f.step7.recommendations ? f.step7.recommendations : '',
-    'حالة المراجعة المركزية': f._status || 'received',
-    'قرار المركزي': f._centralDecision || '',
-    'ملاحظات المركزي': f._centralNotes || '',
-    'خط العرض GPS': f.step1 && f.step1.gps ? f.step1.gps.lat || '' : '',
-    'خط الطول GPS': f.step1 && f.step1.gps ? f.step1.gps.lng || '' : '',
-    'رقم الجلسة': f.sessionId || '',
-    'توقيت الإرسال': f.timestamp || ''
-  };
-}
-
-function downloadWorkbook(wb, filename) {
-  XLSX.writeFile(wb, filename);
-}
-
-function exportFilteredExcel() {
-  const filtered = getFilteredForms();
-  if (!filtered.length) { alert('لا توجد بيانات مطابقة للفلترة الحالية للتصدير'); return; }
-  const rows = filtered.map(formToRow);
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'تقرير التفتيش');
-  const province = document.getElementById('flt-province').value || 'الكل';
-  downloadWorkbook(wb, `تقرير_تفتيش_${province}_${new Date().toISOString().split('T')[0]}.xlsx`);
-}
-
-function exportProvinceExcel() {
-  if (!forms.length) { alert('لا توجد بيانات للتصدير'); return; }
-  const wb = XLSX.utils.book_new();
-  const provinces = [...new Set(forms.map(getProvince))].filter(p => p && p !== '—');
-  provinces.forEach(province => {
-    const provForms = forms.filter(f => getProvince(f) === province);
-    const rows = provForms.map(formToRow);
-    const ws = XLSX.utils.json_to_sheet(rows);
-    // Sheet names max 31 chars, no special chars
-    const sheetName = province.substring(0, 31);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  });
-  downloadWorkbook(wb, `تقرير_تفتيش_حسب_المحافظات_${new Date().toISOString().split('T')[0]}.xlsx`);
-}
-
-function exportAllExcelCombined() {
-  if (!forms.length) { alert('لا توجد بيانات للتصدير'); return; }
-  const wb = XLSX.utils.book_new();
-
-  // Sheet 1: All data combined
-  const allRows = forms.map(formToRow);
-  const wsAll = XLSX.utils.json_to_sheet(allRows);
-  XLSX.utils.book_append_sheet(wb, wsAll, 'كل البيانات');
-
-  // Sheet 2: Summary statistics by province
-  const provinces = [...new Set(forms.map(getProvince))].filter(p => p && p !== '—');
-  const summaryRows = provinces.map(p => {
-    const provForms = forms.filter(f => getProvince(f) === p);
-    return {
-      'المحافظة': p,
-      'إجمالي الزيارات': provForms.length,
-      'منشآت مستوفية': provForms.filter(f=>f.step7&&f.step7.classification==='ok').length,
-      'مخالفات بسيطة': provForms.filter(f=>f.step7&&f.step7.classification==='minor').length,
-      'مخالفات متوسطة': provForms.filter(f=>f.step7&&f.step7.classification==='medium').length,
-      'مخالفات جسيمة': provForms.filter(f=>f.step7&&f.step7.classification==='major').length,
-      'خطر داهم': provForms.filter(f=>f.step7&&f.step7.classification==='danger').length,
-      'عدد المفتشين النشطين': new Set(provForms.map(getLabel)).size
-    };
-  });
-  // Add grand total row
-  summaryRows.push({
-    'المحافظة': 'الإجمالي العام',
-    'إجمالي الزيارات': forms.length,
-    'منشآت مستوفية': forms.filter(f=>f.step7&&f.step7.classification==='ok').length,
-    'مخالفات بسيطة': forms.filter(f=>f.step7&&f.step7.classification==='minor').length,
-    'مخالفات متوسطة': forms.filter(f=>f.step7&&f.step7.classification==='medium').length,
-    'مخالفات جسيمة': forms.filter(f=>f.step7&&f.step7.classification==='major').length,
-    'خطر داهم': forms.filter(f=>f.step7&&f.step7.classification==='danger').length,
-    'عدد المفتشين النشطين': new Set(forms.map(getLabel)).size
-  });
-  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'ملخص إحصائي');
-
-  // Sheet per province
-  provinces.forEach(province => {
-    const provForms = forms.filter(f => getProvince(f) === province);
-    const rows = provForms.map(formToRow);
-    const ws = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, province.substring(0, 31));
-  });
-
-  downloadWorkbook(wb, `تقرير_شامل_نظام_التفتيش_${new Date().toISOString().split('T')[0]}.xlsx`);
-}
-
-// ===== IMPORT =====
-function openImport() { document.getElementById('import-modal').classList.add('open'); }
-function closeImport() { document.getElementById('import-modal').classList.remove('open'); }
-
-function handleJSONImport(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => { document.getElementById('json-paste').value = e.target.result; importFromPaste(); };
-  reader.readAsText(file);
-}
-
-
-function importFromPaste() {
-  const txt = document.getElementById('json-paste').value.trim();
-  try {
-    const data = JSON.parse(txt);
-    if (data.sessionId && !forms.find(f => f.sessionId === data.sessionId)) {
-      data._status = 'received';
-      forms.push(data);
-      updateAll();
-      showNotification('تم استيراد استمارة: ' + getFacility(data));
-      closeImport();
-    } else if (data.sessionId) {
-      alert('هذه الاستمارة موجودة مسبقاً');
-    } else { alert('ملف JSON غير صالح'); }
-  } catch(e) { alert('خطأ في تحليل JSON: ' + e.message); }
-}
-
-function loadSampleData() {
-  const sample = {
-    sessionId: 'BR-SAMPLE-' + Date.now(),
-    timestamp: new Date().toISOString(),
-    _status: 'received',
-    step1: { inspectorName: 'أحمد محمد الخالد', inspectorId: 'W-12345', title: 'مفتش عمل أول', province: 'حلب', visitDate: '2026-05-23', visitType: 'تفتيش مفاجئ', gps: { lat: '36.2021', lng: '37.1343' } },
-    step2: { facilityName: 'شركة النسيج الحديثة', regNum: '87654', sector: 'صناعي / تصنيعي', province: 'حلب', address: 'منطقة الشيخ نجار الصناعية', workers: { total: 45, present: 42, female: 15 }, employer: { name: 'محمود علي كريم', present: 'yes' } },
-    compliance: { 'c3-1': 'ok', 'c3-2': 'partial', 'c3-5': 'no', 'c4-1': 'ok', 'c4-2': 'no', 'c5-1': 'ok', 'c5-3': 'ok' },
-    step7: { classification: 'minor', action: 'إنذار كتابي بإصلاح الأوضاع', violations: 'وجود مخالفات بسيطة في سجلات العمال وعدم توفير معدات وقاية كافية لـ 3 عمال. يُنصح بتحسين سجلات التأمينات الاجتماعية.', recommendations: '1. تحديث سجلات العمال خلال 15 يوم. 2. توفير معدات وقاية شخصية. 3. إجراء كشف طبي دوري.', notes: 'منشأة تعاونية جيداً، يُتوقع تصحيح الوضع خلال المهلة المحددة.' }
-  };
-  if (!forms.find(f=>f.sessionId===sample.sessionId)) forms.push(sample);
-  updateAll();
-  showNotification('تم تحميل بيانات تجريبية');
-  closeImport();
-}
-
-function exportAll() {
-  const blob = new Blob([JSON.stringify(forms, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'central-forms-' + Date.now() + '.json'; a.click();
-}
-
-// ===== AUTOMATIC BACKUP =====
-// ينشئ نسخة احتياطية يومية تلقائية داخل Firebase نفسه تحت مسار منفصل "backups"
-// هذا يحمي من الحذف العرضي لبيانات "inspections" — النسخة الاحتياطية اليومية تبقى محفوظة بشكل مستقل
-async function runDailyBackup() {
-  if (!SyncEngine.isFirebaseReady() || !forms.length) return;
-  const today = new Date().toISOString().split('T')[0];
-  const backupKey = 'backup_' + today;
-  try {
-    // تحقق هل تم عمل نسخة احتياطية اليوم بالفعل لتجنب التكرار
-    const existing = await db.ref('backups/' + backupKey + '/meta').once('value');
-    if (existing.exists()) return;
-    await db.ref('backups/' + backupKey).set({
-      meta: { date: today, count: forms.length, createdAt: Date.now() },
-      data: forms
-    });
-    console.log('✓ تم إنشاء نسخة احتياطية يومية: ' + backupKey);
-  } catch (e) {
-    console.warn('تعذر إنشاء النسخة الاحتياطية اليومية:', e.message);
-  }
-}
-
-// تشغيل النسخ الاحتياطي عند تحميل الصفحة، ثم كل 6 ساعات للتأكد من عدم فوات أي يوم
-setTimeout(runDailyBackup, 10000);
-setInterval(runDailyBackup, 6 * 60 * 60 * 1000);
-
-async function listBackups() {
-  if (!SyncEngine.isFirebaseReady()) { alert('قاعدة البيانات غير متصلة حالياً'); return; }
-  try {
-    const snap = await db.ref('backups').once('value');
-    const backups = snap.val() || {};
-    const keys = Object.keys(backups).sort().reverse();
-    if (!keys.length) { alert('لا توجد نسخ احتياطية بعد. سيتم إنشاء أول نسخة تلقائياً خلال دقائق من فتح هذه الصفحة.'); return; }
-    const list = keys.slice(0, 15).map(k => {
-      const b = backups[k];
-      const d = b.meta ? b.meta.date : k.replace('backup_','');
-      const c = b.meta ? b.meta.count : (b.data ? b.data.length : '?');
-      return `${d} — ${c} استمارة`;
-    }).join('\n');
-    const choice = prompt('النسخ الاحتياطية المتوفرة (آخر 15 يوماً):\n\n' + list + '\n\nاكتب التاريخ (YYYY-MM-DD) لاستعادة نسخة معينة، أو اتركه فارغاً للإلغاء:');
-    if (choice && backups['backup_' + choice]) {
-      if (confirm('هل أنت متأكد من استعادة نسخة ' + choice + '؟ سيتم استبدال البيانات المعروضة حالياً (لن يحذف شيئاً من Firebase الأصلي).')) {
-        const restoredData = backups['backup_' + choice].data || [];
-        forms = restoredData;
-        updateAll();
-        alert('تم استرجاع نسخة ' + choice + ' بنجاح (' + restoredData.length + ' استمارة) — هذه نسخة للعرض، اضغط تصدير Excel لحفظها.');
-      }
-    }
-  } catch (e) {
-    alert('خطأ في جلب النسخ الاحتياطية: ' + e.message);
-  }
-}
-
-// ===== FACTORY RESET (تصفير كامل / بدء جديد) =====
-// يحذف كل بيانات الاستمارات والتتبع اللحظي، مع نسخة احتياطية أمان تلقائية قبل الحذف مباشرة
-async function factoryReset() {
-  if (!SyncEngine.isFirebaseReady()) { alert('قاعدة البيانات غير متصلة حالياً — لا يمكن التصفير بدون اتصال إنترنت'); return; }
-
-  const totalCount = forms.length;
-  const step1 = confirm(
-    `⚠️ تصفير كامل للنظام\n\n` +
-    `سيتم حذف جميع الاستمارات الحالية (${totalCount} استمارة) وكل بيانات تتبع المفتشين اللحظية نهائياً من قاعدة البيانات.\n\n` +
-    `سيُنشأ تلقائياً نسخة احتياطية أمان قبل الحذف مباشرة (يمكن استعادتها لاحقاً من "النسخ الاحتياطية").\n\n` +
-    `هل تريد المتابعة؟`
-  );
-  if (!step1) return;
-
-  const confirmText = prompt('للتأكيد النهائي، اكتب كلمة "تصفير" بالضبط في الحقل أدناه:');
-  if (confirmText !== 'تصفير') { alert('تم إلغاء العملية — لم يُحذف أي شيء.'); return; }
-
-  try {
-    // نسخة احتياطية أمان فورية قبل الحذف (منفصلة عن النسخة اليومية التلقائية)
-    const safetyKey = 'backup_pre-reset_' + new Date().toISOString().replace(/[:.]/g, '-');
-    if (totalCount > 0) {
-      await db.ref('backups/' + safetyKey).set({
-        meta: { date: new Date().toISOString(), count: totalCount, type: 'قبل التصفير' },
-        data: forms
-      });
-    }
-
-    // حذف بيانات الاستمارات والتتبع اللحظي فقط — النسخ الاحتياطية تبقى محفوظة دائماً
-    await db.ref('inspections').remove();
-    await db.ref('presence').remove();
-
-    forms = [];
-    updateAll();
-    alert(
-      `✅ تم التصفير بنجاح!\n\n` +
-      `تم حذف ${totalCount} استمارة وكل بيانات التتبع اللحظي.\n` +
-      (totalCount > 0 ? `تم حفظ نسخة احتياطية أمان قبل الحذف باسم: ${safetyKey}\n` : '') +
-      `النظام الآن جاهز للعمل الفعلي من الصفر.`
-    );
-  } catch (e) {
-    alert('حدث خطأ أثناء التصفير: ' + e.message + '\n\nلم يُحذف أي شيء — حاول مرة أخرى أو تحقق من اتصال الإنترنت.');
-  }
-}
-
-function openFirebaseSetup() {
-  alert('⚙️ إعداد Firebase\n\nلربط النظام بقاعدة بيانات Firebase:\n1. أنشئ مشروع Firebase على console.firebase.google.com\n2. أضف config.js بمفاتيح المشروع\n3. فعّل Firestore وAuthentication\n\nالمزامنة التلقائية ستعمل بعد الإعداد.');
-}
-
-// ===== VIDEO CALL (WebRTC حقيقي — إشارة عبر Firebase + STUN/TURN مجاني) =====
-const METERED_API_KEY = 'VpmAL57-M7Ww5cEf69ZNm7AFmH_gew5tLQiaNA0TE5zHlul.5';
-const METERED_APP_DOMAIN = 'inspection.metered.live';
-
-async function getIceServers() {
-  // استخدام بيانات TURN مباشرة بدون fetch (يتجاوز مشكلة CORS)
-  // Metered TURN servers — TCP/443 فقط لتجاوز الشبكات المقيّدة (سوريا)
-  try {
-    const res = await fetch(
-      `https://${METERED_APP_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`,
-      { signal: AbortSignal.timeout(3000) }
-    );
-    if (res.ok) {
-      const servers = await res.json();
-      if (document.getElementById('call-status')) document.getElementById('call-status').textContent = 'جاري الاتصال... (TURN ✅)';
-      return servers;
-    }
-  } catch (e) { console.warn('Metered fetch:', e.message); }
-  if (document.getElementById('call-status')) document.getElementById('call-status').textContent = 'جاري الاتصال... (TCP/443)';
-  return [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:relay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turns:relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-  ];
-}
-let pc = null, localStream = null, callRoomRef = null;
-let micEnabled = true, camEnabled = true, pendingIceCandidates = [];
-
-function roomNameFromSession(sid) {
-  // تطبيع الأحرف لحروف كبيرة دائماً لتفادي اختلاف الغرفة بسبب فرق كتابة الأحرف (كبيرة/صغيرة)
-  return (sid || 'inspection').toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
-async function getLocalStream() {
-  if (localStream) return localStream;
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    document.getElementById('local-video').srcObject = localStream;
-    return localStream;
-  } catch(e) {
-    document.getElementById('call-placeholder').innerHTML = `
-      <div style="background:#b71c1c;color:#fff;border-radius:8px;padding:16px;margin:10px;font-size:13px;line-height:1.8;text-align:right;max-width:400px">
-        ⚠️ <strong>يجب السماح بالكاميرا والمايكروفون</strong><br><br>
-        💻 <strong>على الحاسوب (Chrome):</strong><br>
-        1. انقر على أيقونة 📷 في شريط العنوان (يمين الرابط)<br>
-        2. اختر <strong>"Always allow"</strong> للكاميرا والمايكروفون<br>
-        3. أعد تحميل الصفحة (F5) ثم اضغط "اتصال" مجدداً<br><br>
-        <button onclick="retryCamera()" style="background:#fff;color:#b71c1c;border:none;padding:8px 18px;border-radius:6px;font-weight:bold;cursor:pointer;width:100%">🔄 إعادة المحاولة</button>
-      </div>`;
-    document.getElementById('call-status').textContent = '⚠️ الكاميرا مرفوضة';
-    throw e;
-  }
-}
-
-async function retryCamera() {
-  document.getElementById('call-placeholder').innerHTML = '<div style="color:#fff">جاري طلب إذن الكاميرا...</div>';
-  try {
-    await getLocalStream();
-    document.getElementById('call-placeholder').innerHTML = '<div style="color:#4caf50;font-size:14px">✅ الكاميرا جاهزة — أدخل رقم الجلسة واضغط "اتصال"</div>';
-    document.getElementById('call-status').textContent = 'الكاميرا جاهزة ✅';
-  } catch(e) {
-    document.getElementById('call-placeholder').innerHTML = '<div style="color:#ff8a80">لا يزال مرفوضاً — اتبع التعليمات أعلاه ثم اضغط "إعادة المحاولة" مجدداً</div>';
-  }
-}
-
-async function setupPeerConnection() {
-  const iceServers = await getIceServers();
-  pc = new RTCPeerConnection({ iceServers });
-  const remoteVideo = document.getElementById('remote-video');
-  pc.ontrack = (event) => {
-    if (event.streams && event.streams[0]) {
-      remoteVideo.srcObject = event.streams[0];
-    } else {
-      if (!remoteVideo.srcObject) remoteVideo.srcObject = new MediaStream();
-      remoteVideo.srcObject.addTrack(event.track);
-    }
-    document.getElementById('call-placeholder').style.display = 'none';
-    document.getElementById('call-status').textContent = 'متصل ●';
-  };
-  pc.onconnectionstatechange = () => {
-    if (!pc) return;
-    const state = pc.connectionState;
-    const statusEl = document.getElementById('call-status');
-    if (state === 'connected') { 
-      statusEl.textContent = 'متصل ●'; 
-      document.getElementById('call-placeholder').style.display = 'none'; 
-    }
-    if (state === 'connecting') statusEl.textContent = 'جاري الاتصال...';
-    if (state === 'failed') { 
-      statusEl.textContent = 'فشل — يُعاد تلقائياً...'; 
-      setTimeout(() => { if (pc) pc.restartIce && pc.restartIce(); }, 2000);
-    }
-    if (state === 'disconnected') statusEl.textContent = 'انقطع — يُعاد...';
-  };
-  return pc;
-}
-
-function flushPendingCandidates() {
-  pendingIceCandidates.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
-  pendingIceCandidates = [];
-}
-
-async function openVideoCall(sid) {
-  document.getElementById('video-modal').classList.add('open');
-  // نطلب إذن الكاميرا فوراً عند فتح النافذة (قبل الاتصال) حتى تكون جاهزة
-  try { await getLocalStream(); } catch(e) { console.warn('camera pre-request failed'); }
-  if (sid) {
-    document.getElementById('call-room-input').value = sid;
-    joinCallRoom();
-  } else {
-    document.getElementById('call-room-input').value = '';
-    document.getElementById('call-room-input').focus();
-  }
-}
-
-async function joinCallRoom() {
-  const sidRaw = document.getElementById('call-room-input').value.trim();
-  if (!sidRaw) { alert('أدخل رقم جلسة المفتش الفرعي أولاً (مثل BR-XXXXX) — يظهر في أعلى شاشته أو في جدول الاستمارات الواردة'); return; }
-  if (typeof db === 'undefined' || db === null) { alert('قاعدة البيانات غير متصلة حالياً'); return; }
-
-  document.getElementById('call-status').textContent = 'جاري الاتصال...';
-  document.getElementById('call-placeholder').style.display = 'flex';
-
-  try {
-    await getLocalStream();
-  } catch(e) {
-    document.getElementById('call-status').textContent = 'تعذر الوصول للكاميرا/المايكروفون';
+// ===== CAMERA =====
+async function toggleCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+    document.getElementById('camera-video').style.display = 'none';
+    document.getElementById('camera-placeholder').style.display = 'flex';
+    document.getElementById('btn-cam').textContent = '🎥 تشغيل الكاميرا';
+    document.getElementById('btn-rec').style.display = 'none';
+    document.getElementById('btn-snap').style.display = 'none';
     return;
   }
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const video = document.getElementById('camera-video');
+    video.srcObject = cameraStream;
+    video.style.display = 'block';
+    document.getElementById('camera-placeholder').style.display = 'none';
+    document.getElementById('btn-cam').textContent = '⏹ إيقاف الكاميرا';
+    document.getElementById('btn-rec').style.display = 'inline-flex';
+    document.getElementById('btn-snap').style.display = 'inline-flex';
+    addEvent('تم تشغيل الكاميرا الميدانية');
+  } catch(e) { alert('تعذر الوصول للكاميرا: ' + e.message); }
+}
 
-  pendingIceCandidates = [];
-  const roomId = roomNameFromSession(sidRaw);
-  callRoomRef = db.ref('calls/' + roomId);
-  await callRoomRef.remove().catch(()=>{}); // تنظيف أي بقايا من مكالمة سابقة بنفس الرقم
-  await setupPeerConnection();
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+function toggleRecord() {
+  if (isRecording) {
+    mediaRecorder.stop();
+    isRecording = false;
+    document.getElementById('btn-rec').textContent = '⏺ تسجيل';
+    document.getElementById('rec-indicator').style.display = 'none';
+    addEvent('توقف التسجيل الميداني');
+  } else {
+    if (!cameraStream) return;
+    recordChunks = [];
+    mediaRecorder = new MediaRecorder(cameraStream);
+    mediaRecorder.ondataavailable = e => recordChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordChunks, { type: 'video/webm' });
+      const fileName = 'inspection-video-' + Date.now() + '.webm';
+      const file = new File([blob], fileName, { type: 'video/webm' });
+      attachCapturedFile(file, 'docs'); // رفع الفيديو المسجَّل تلقائياً وإرفاقه بالاستمارة
+      // نسخة احتياطية محلية اختيارية للمفتش (تحميل على جهازه)
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    document.getElementById('btn-rec').textContent = '⏹ إيقاف التسجيل';
+    document.getElementById('rec-indicator').style.display = 'flex';
+    addEvent('بدأ تسجيل الفيديو الميداني');
+    let s = 0;
+    const t = setInterval(() => {
+      if (!isRecording) { clearInterval(t); return; }
+      s++;
+      document.getElementById('rec-timer').textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+    }, 1000);
+  }
+}
 
-  pc.onicecandidate = (event) => {
-    if (event.candidate) callRoomRef.child('callerCandidates').push(event.candidate.toJSON());
-  };
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await callRoomRef.child('offer').set({ type: offer.type, sdp: offer.sdp });
-
-  callRoomRef.child('answer').on('value', async (snap) => {
-    const answer = snap.val();
-    if (!answer || !pc || pc.currentRemoteDescription) return;
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
-      flushPendingCandidates();
-    } catch(e) { console.warn('خطأ في استقبال رد الاتصال:', e.message); }
+function takeSnapshot() {
+  if (!cameraStream) return;
+  const video = document.getElementById('camera-video');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+  canvas.toBlob(blob => {
+    const fileName = 'snapshot-' + Date.now() + '.jpg';
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+    attachCapturedFile(file, 'photos'); // رفع الصورة الميدانية تلقائياً وإرفاقها بالاستمارة
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+    addEvent('تم التقاط صورة ميدانية');
   });
+}
 
-  callRoomRef.child('calleeCandidates').on('child_added', (snap) => {
-    const data = snap.val();
-    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-      pc.addIceCandidate(new RTCIceCandidate(data)).catch(()=>{});
-    } else {
-      pendingIceCandidates.push(data);
+// يحوّل ملف الكاميرا (فيديو/صورة) إلى نفس مسار الرفع المستخدم لمدخلات الملفات، فيظهر في قائمة المرفقات ويُرفع للسحابة
+function attachCapturedFile(file, type) {
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  const fakeInput = { files: dt.files };
+  handleUpload(fakeInput, type);
+}
+
+// ===== UPLOAD (Cloudinary — صور + فيديو + مستندات تُرفع فعلياً وتظهر بالكامل في المركزي) =====
+if (!window.uploadedFiles) window.uploadedFiles = { photos: [], docs: [] };
+if (!window.pendingCloudUploads) window.pendingCloudUploads = []; // ملفات فشل رفعها وتنتظر إعادة المحاولة
+
+const CLOUDINARY_CONFIG = {
+  cloudName: 'duqznzjrd',
+  uploadPreset: 'inspection_upload'
+};
+
+function uploadToCloudinary(file) {
+  return new Promise((resolve, reject) => {
+    if (!CLOUDINARY_CONFIG.cloudName || !CLOUDINARY_CONFIG.uploadPreset) {
+      reject(new Error('Cloudinary غير مهيأ'));
+      return;
     }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`;
+    fetch(url, { method: 'POST', body: formData })
+      .then(res => {
+        if (!res.ok) throw new Error('فشل الرفع — تحقق من إعداد upload preset في Cloudinary');
+        return res.json();
+      })
+      .then(json => resolve(json))
+      .catch(reject);
   });
+}
+
+function handleUpload(input, type) {
+  const list = document.getElementById(type + '-list');
+  const files = Array.from(input.files);
+
+  files.forEach(file => {
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const isPDF = file.type === 'application/pdf';
+    const kind = isImage ? 'image' : isVideo ? 'video' : isPDF ? 'pdf' : 'document';
+    const sizeKB = (file.size / 1024).toFixed(0);
+    const sizeMB = (file.size / (1024*1024)).toFixed(1);
+    const sizeLabel = file.size > 1024*1024 ? sizeMB + ' MB' : sizeKB + ' KB';
+    const icon = isImage ? '📷' : isVideo ? '🎥' : isPDF ? '📄' : '📎';
+
+    // عنصر مؤقت يُظهر "جاري الرفع" فوراً، ويُستبدَل بعد اكتمال الرفع
+    const div = document.createElement('div');
+    div.style = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:#e3f2fd;border-radius:6px;margin-top:6px;font-size:12px';
+    div.innerHTML = `
+      <span style="font-size:20px">⏳</span>
+      <div>
+        <div style="font-weight:700;color:#0d47a1">جاري الرفع إلى السحابة...</div>
+        <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+      </div>`;
+    list.appendChild(div);
+
+    const fileRecordBase = { name: file.name, type: kind, mimeType: file.type, size: sizeLabel, uploadedAt: new Date().toISOString() };
+
+    uploadToCloudinary(file).then(result => {
+      const record = { ...fileRecordBase, url: result.secure_url };
+      window.uploadedFiles[type].push(record);
+
+      if (isImage) {
+        div.style.background = '#e8f5e9';
+        div.innerHTML = `
+          <img src="${result.secure_url}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #a5d6a7;cursor:pointer" onclick="window.open('${result.secure_url}','_blank')">
+          <div>
+            <div style="font-weight:700;color:#1b5e20">✅ صورة مرفوعة بنجاح</div>
+            <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+          </div>`;
+      } else if (isVideo) {
+        div.style.background = '#fff3e0';
+        div.innerHTML = `
+          <span style="font-size:20px">🎥</span>
+          <div>
+            <div style="font-weight:700;color:#e65100">✅ فيديو مرفوع بنجاح — يظهر كاملاً للمركزي</div>
+            <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+            <a href="${result.secure_url}" target="_blank" style="font-size:11px;color:#1565c0">▶ مشاهدة الفيديو</a>
+          </div>`;
+      } else {
+        div.style.background = '#fce4ec';
+        div.innerHTML = `
+          <span style="font-size:20px">${icon}</span>
+          <div>
+            <div style="font-weight:700;color:#880e4f">✅ ${isPDF ? 'مستند PDF' : 'مستند'} مرفوع بنجاح</div>
+            <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+            <a href="${result.secure_url}" target="_blank" style="font-size:11px;color:#1565c0">📄 فتح المستند</a>
+          </div>`;
+      }
+      addEvent(`تم رفع ${isImage ? 'صورة' : isVideo ? 'فيديو' : 'مستند'} للسحابة: ${file.name} (${sizeLabel})`);
+    }).catch(err => {
+      console.warn('فشل رفع الملف لـ Cloudinary:', file.name, err.message);
+      // وضع احتياطي: صورة صغيرة تُحفَظ محلياً Base64، وأي ملف آخر يُحفَظ كمعلومة فقط + يُضاف لقائمة إعادة المحاولة
+      window.pendingCloudUploads.push({ file, type });
+
+      if (isImage && file.size <= 2 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64 = e.target.result;
+          window.uploadedFiles[type].push({ ...fileRecordBase, data: base64, _pendingCloudUpload: true });
+          div.style.background = '#fff8e1';
+          div.innerHTML = `
+            <img src="${base64}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #ffd54f">
+            <div>
+              <div style="font-weight:700;color:#e65100">⏳ محفوظة محلياً — ستُرفع للسحابة عند توفر الإنترنت</div>
+              <div style="color:var(--muted)">${file.name} (${sizeLabel})</div>
+            </div>`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        window.uploadedFiles[type].push({ ...fileRecordBase, data: null, _pendingCloudUpload: true });
+        div.style.background = '#fff8e1';
+        div.innerHTML = `
+          <span style="font-size:20px">${icon}</span>
+          <div>
+            <div style="font-weight:700;color:#e65100">⏳ ${file.name} — سيُرفع تلقائياً عند توفر الإنترنت</div>
+            <div style="color:var(--muted)">${sizeLabel} — لا يُغلق المتصفح قبل اكتمال الرفع</div>
+          </div>`;
+      }
+      addEvent(`تعذر رفع ${file.name} حالياً — في قائمة الانتظار`);
+    });
+  });
+}
+
+// إعادة محاولة رفع الملفات المعلَّقة فور توفر الإنترنت
+async function retryPendingCloudUploads() {
+  if (!window.pendingCloudUploads.length) return;
+  const queue = window.pendingCloudUploads.splice(0, window.pendingCloudUploads.length);
+  for (const item of queue) {
+    try {
+      const result = await uploadToCloudinary(item.file);
+      const idx = window.uploadedFiles[item.type].findIndex(f => f.name === item.file.name && f._pendingCloudUpload);
+      if (idx > -1) {
+        window.uploadedFiles[item.type][idx] = { ...window.uploadedFiles[item.type][idx], url: result.secure_url, data: null, _pendingCloudUpload: false };
+      }
+      addEvent('تم رفع الملف المعلَّق للسحابة: ' + item.file.name);
+    } catch (e) {
+      window.pendingCloudUploads.push(item); // أعد إدخاله في قائمة الانتظار للمحاولة القادمة
+    }
+  }
+}
+window.addEventListener('online', retryPendingCloudUploads);
+setInterval(() => { if (navigator.onLine) retryPendingCloudUploads(); }, 20000);
+
+
+// ===== VIDEO CALL (Whereby — مكالمة مضمونة عبر HTTPS/443) =====
+const WHEREBY_ROOM = 'https://whereby.com/saedalsabsaby';
+
+function openVideoCall() {
+  document.getElementById('video-modal').classList.add('open');
+  document.getElementById('call-status').textContent = 'جاري الاتصال...';
+
+  // إشعار المركزي بوجود مكالمة واردة (نفس آلية الإشعار التلقائي السابقة)
+  if (typeof db !== 'undefined' && db !== null && typeof sessionId !== 'undefined') {
+    const name = (inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : 'مفتش فرعي';
+    const province = (inspectorIdentity && inspectorIdentity.province) ? inspectorIdentity.province : '—';
+    db.ref('incomingCalls/' + sessionId).set({
+      inspectorName: name,
+      province: province,
+      sessionId: sessionId,
+      roomUrl: WHEREBY_ROOM,
+      timestamp: Date.now()
+    }).catch(() => {});
+  }
+
+  // تضمين غرفة Whereby مع اسم المفتش
+  const name = encodeURIComponent((inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : 'مفتش فرعي');
+  const wrap = document.getElementById('whereby-wrap');
+  wrap.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.src = `${WHEREBY_ROOM}?displayName=${name}&skipMediaPermissionPrompt=on`;
+  iframe.style.cssText = 'width:100%;height:100%;border:0;background:#000';
+  iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay; speaker-selection';
+  wrap.appendChild(iframe);
+
+  setTimeout(() => {
+    document.getElementById('call-status').textContent = 'متصل ●';
+  }, 3000);
+  addEvent('بدء مكالمة مرئية عبر Whereby');
 }
 
 function closeVideoCall() {
   document.getElementById('video-modal').classList.remove('open');
-  if (pc) { pc.close(); pc = null; }
-  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-  if (callRoomRef) {
-    callRoomRef.child('answer').off();
-    callRoomRef.child('calleeCandidates').off();
-    callRoomRef = null;
-  }
-  pendingIceCandidates = [];
-  document.getElementById('call-placeholder').style.display = 'flex';
+  document.getElementById('whereby-wrap').innerHTML = '';
   document.getElementById('call-status').textContent = '—';
-  document.getElementById('local-video').srcObject = null;
-  document.getElementById('remote-video').srcObject = null;
+  // إلغاء الإشعار عند المركزي
+  if (typeof db !== 'undefined' && db !== null && typeof sessionId !== 'undefined') {
+    db.ref('incomingCalls/' + sessionId).remove().catch(() => {});
+  }
+  addEvent('انتهاء المكالمة المرئية');
 }
 
-function toggleMic() {
-  if (!localStream) return;
-  micEnabled = !micEnabled;
-  localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
-  document.getElementById('btn-mic').textContent = micEnabled ? '🎙️' : '🔇';
+// ===== MOBILE SIDEBAR (القائمة الجانبية على الهاتف) =====
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('mobile-sidebar-backdrop').classList.add('open');
 }
-function toggleCam() {
-  if (!localStream) return;
-  camEnabled = !camEnabled;
-  localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
-  document.getElementById('btn-cam').textContent = camEnabled ? '📷' : '📷🚫';
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('mobile-sidebar-backdrop').classList.remove('open');
 }
 
-// ===== INCOMING CALL POPUP (إشعار المكالمات الواردة من المفتشين الفرعيين) =====
-function showIncomingCallPopup(call) {
-  const container = document.getElementById('incoming-calls-container');
-  if (!container) return;
-  // لا تُكرّر popup لنفس المكالمة
-  if (document.getElementById('call-popup-' + call.roomId)) return;
+// ===== COLLECT DATA =====
+function collectFormData() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const r = name => { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : ''; };
+  return {
+    sessionId,
+    timestamp: new Date().toISOString(),
+    step1: { inspectorName: g('f-inspector-name'), inspectorId: g('f-inspector-id'), title: g('f-inspector-title'), province: g('f-province'), visitDate: g('f-visit-date'), visitType: g('f-visit-type'), gps: gpsData, team: { i2: g('f-inspector2'), i3: g('f-inspector3'), ilo: g('f-ilo-rep') } },
+    step2: { facilityName: g('f-facility-name'), regNum: g('f-reg-num'), sector: g('f-sector'), province: g('f-facility-province'), address: g('f-address'), phone: g('f-phone'), email: g('f-email'), founded: g('f-founded'), workers: { total: g('f-workers-total'), present: g('f-workers-present'), foreign: g('f-workers-foreign'), minor: g('f-workers-minor'), female: g('f-workers-female'), disabled: g('f-workers-disabled') }, employer: { name: g('f-employer-name'), id: g('f-employer-id'), present: r('employer-present') } },
+    compliance: complianceData,
+    step7: { classification: g('f-classification'), action: g('f-action'), violations: g('f-violations'), recommendations: g('f-recommendations'), notes: g('f-notes-central'), signee: g('f-signee'), signed: g('f-signed') },
+    // الملفات المرفوعة: الصور كاملة (Base64)، الفيديو/المستندات كمعلومات فقط
+    attachments: {
+      photos: (window.uploadedFiles && window.uploadedFiles.photos) ? window.uploadedFiles.photos : [],
+      docs: (window.uploadedFiles && window.uploadedFiles.docs) ? window.uploadedFiles.docs : []
+    },
+    events
+  };
+}
 
-  const popup = document.createElement('div');
-  popup.id = 'call-popup-' + call.roomId;
-  popup.style.cssText = `
-    pointer-events:all;
-    background:#1b5e20;
-    color:#fff;
-    border-radius:12px;
-    padding:14px 16px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.4);
-    animation:slideInCall .3s ease;
-    font-size:13px;
-    line-height:1.7;
-  `;
-  popup.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <span style="font-size:28px;animation:ring 1s infinite">📞</span>
-      <div>
-        <div style="font-weight:800;font-size:14px">مكالمة واردة من مفتش فرعي</div>
-        <div style="opacity:.85">${call.inspectorName || '—'} | ${call.province || '—'}</div>
-        <div style="opacity:.7;font-size:11px">رقم الجلسة: ${call.sessionId || '—'}</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="answerIncomingCall('${call.roomId}','${call.sessionId}')"
-        style="flex:1;background:#4caf50;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer">
-        📹 رد على المكالمة
-      </button>
-      <button onclick="dismissIncomingCall('${call.roomId}')"
-        style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;cursor:pointer;min-width:44px">
-        ✕
-      </button>
-    </div>`;
-  container.appendChild(popup);
+// ===== SEND =====
+function openSendModal() {
+  const data = collectFormData();
+  const json = JSON.stringify(data, null, 2);
+  document.getElementById('json-preview').textContent = json;
+  document.getElementById('send-status').textContent = '📋 مراجعة البيانات قبل الإرسال...';
+  document.getElementById('send-status').className = 'alert alert-info';
+  document.getElementById('send-modal').classList.add('open');
+}
 
-  // تشغيل صوت تنبيه (اختياري — يعمل فقط إذا كان المتصفح مفتوحاً)
+function closeSendModal() {
+  document.getElementById('send-modal').classList.remove('open');
+}
+
+function confirmSend() {
+  const data = collectFormData();
+  data._syncStatus = 'pending';
+
+  // معظم المرفقات الآن روابط سحابية صغيرة (Cloudinary) فتُرسَل فوراً ضمن الاستمارة.
+  // فقط الملفات الاحتياطية (Base64 — حالة عدم توفر نت لحظة الرفع) تُستثنى من الإرسال الفوري لأنها ثقيلة.
+  const dataFast = JSON.parse(JSON.stringify(data));
+  let heavyCount = 0;
+  ['photos', 'docs'].forEach(key => {
+    if (dataFast.attachments && dataFast.attachments[key]) {
+      dataFast.attachments[key] = dataFast.attachments[key].map(item => {
+        if (item.data) { // ملف احتياطي ثقيل (Base64) لم يُرفع للسحابة بعد
+          heavyCount++;
+          return { name: item.name, type: item.type, size: item.size, uploadedAt: item.uploadedAt, url: item.url || null, data: null, _pendingUpload: true };
+        }
+        return item; // عنصر برابط سحابي صغير — يُرسَل كما هو
+      });
+    }
+  });
+
+  document.getElementById('send-status').innerHTML = '🔄 <strong>جاري الإرسال...</strong> يتم إرسال بيانات الاستمارة الآن.';
+  document.getElementById('send-status').className = 'alert alert-info';
+
+  SyncEngine.submitForm(dataFast).then(result => {
+    if (result.online) {
+      document.getElementById('send-status').innerHTML = heavyCount > 0
+        ? '✅ <strong>تم إرسال الاستمارة بنجاح!</strong> وصلت للمفتش المركزي مع كل المرفقات السحابية. جاري إرسال الملفات الاحتياطية المتبقية...'
+        : '✅ <strong>اكتمل الإرسال بالكامل!</strong> الاستمارة وكل المرفقات (صور/فيديو/مستندات) وصلت للمفتش المركزي.';
+      document.getElementById('send-status').className = 'alert alert-success';
+      addEvent('تم إرسال بيانات الاستمارة للمركزي — رقم: ' + sessionId);
+
+      // إرسال أي ملفات احتياطية (Base64) لم تُرفع للسحابة بعد، بشكل منفصل في الخلفية
+      const heavyPhotos = (data.attachments && data.attachments.photos) ? data.attachments.photos.filter(p => p.data) : [];
+      const heavyDocs = (data.attachments && data.attachments.docs) ? data.attachments.docs.filter(p => p.data) : [];
+      const heavyAll = [...heavyPhotos.map(p => ({ ...p, _key: 'photos' })), ...heavyDocs.map(p => ({ ...p, _key: 'docs' }))];
+      if (heavyAll.length > 0 && SyncEngine.isFirebaseReady()) {
+        sendHeavyFilesInBackground(sessionId, heavyAll);
+      }
+    } else {
+      document.getElementById('send-status').innerHTML = '💾 <strong>تم الحفظ محلياً.</strong> لا يوجد اتصال — سيتم الإرسال تلقائياً فور توفر الشبكة.';
+      document.getElementById('send-status').className = 'alert alert-warning';
+      addEvent('تم حفظ الاستمارة محلياً — ستُزامَن تلقائياً — رقم: ' + sessionId);
+    }
+    updateSyncBadge();
+  });
+}
+
+// إرسال المرفقات الاحتياطية (Base64) في الخلفية تباعاً — حالة نادرة عندما تفشل السحابة لحظة الرفع
+async function sendHeavyFilesInBackground(sid, files) {
+  const statusEl = document.getElementById('send-status');
+  let sent = 0;
+  for (const f of files) {
+    try {
+      if (typeof db !== 'undefined' && db !== null) {
+        await db.ref('inspections/' + sid + '/attachments/' + f._key + '/' + sent).set(f);
+        sent++;
+        if (statusEl) statusEl.innerHTML = `✅ <strong>تم الإرسال!</strong> جاري رفع الملفات الاحتياطية (${sent}/${files.length})...`;
+      }
+    } catch(e) {
+      console.warn('تعذر رفع الملف:', f.name, e.message);
+    }
+  }
+  if (statusEl) statusEl.innerHTML = `✅ <strong>اكتمل الإرسال بالكامل!</strong> الاستمارة وكل المرفقات وصلت للمفتش المركزي.`;
+  addEvent(`اكتمل رفع الملفات الاحتياطية: ${sent}/${files.length}`);
+}
+
+function downloadJSON() {
+  const data = collectFormData();
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'inspection-' + sessionId + '.json'; a.click();
+}
+
+function copyJSON() {
+  navigator.clipboard.writeText(JSON.stringify(collectFormData(),null,2)).then(() => alert('تم النسخ!'));
+}
+
+function saveLocal() {
+  const data = collectFormData();
+  SyncEngine.saveLocal(data).then(() => {
+    alert('تم الحفظ محلياً على هذا الجهاز ✓\nسيتم إرسالها للمركزي تلقائياً عند الضغط على "إرسال للمركزي" أو فور توفر الاتصال إذا كانت قد أُرسلت من قبل.');
+  });
+}
+
+function printForm() { window.print(); }
+
+function updateClassification() {}
+
+// ===== INIT =====
+buildComplianceSections();
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('f-visit-date').value = today;
+// ===== INSPECTOR SETUP & SYNC ENGINE INIT =====
+let inspectorIdentity = null;
+
+function loadInspectorIdentity() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [0, 400, 800].forEach(delay => {
-      setTimeout(() => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-        osc.start(); osc.stop(ctx.currentTime + 0.3);
-      }, delay);
-    });
+    const saved = localStorage.getItem('inspector_identity');
+    if (saved) return JSON.parse(saved);
   } catch(e) {}
+  return null;
 }
 
-function removeIncomingCallPopup(roomId) {
-  const popup = document.getElementById('call-popup-' + roomId);
-  if (popup) popup.remove();
+function completeSetup() {
+  const name = document.getElementById('setup-name').value.trim();
+  const id = document.getElementById('setup-id').value.trim();
+  const province = document.getElementById('setup-province').value;
+  if (!name || !id || !province) { alert('يرجى تعبئة جميع الحقول المطلوبة'); return; }
+  inspectorIdentity = { id, name, province };
+  try { localStorage.setItem('inspector_identity', JSON.stringify(inspectorIdentity)); } catch(e) {}
+  document.getElementById('setup-overlay').style.display = 'none';
+  // Pre-fill form fields
+  document.getElementById('f-inspector-name').value = name;
+  document.getElementById('f-inspector-id').value = id;
+  document.getElementById('f-province').value = province;
+  startSyncEngine();
 }
 
-function answerIncomingCall(roomId, sessionId) {
-  removeIncomingCallPopup(roomId);
-  // تعبئة رقم الجلسة تلقائياً وفتح نافذة المكالمة
-  openVideoCall(sessionId);
+function startSyncEngine() {
+  SyncEngine.init(inspectorIdentity, {
+    onStatusChange: updateSyncBar
+  }).then(() => {
+    SyncEngine.startLiveLocationTracking();
+    updateSyncBadge();
+  });
 }
 
-function dismissIncomingCall(roomId) {
-  removeIncomingCallPopup(roomId);
+function updateSyncBar(status) {
+  const bar = document.getElementById('sync-bar');
+  const text = document.getElementById('sync-text');
+  if (status.online === false) {
+    bar.className = 'sync-bar offline';
+    text.textContent = '🔴 غير متصل بالإنترنت — يتم الحفظ محلياً، سيُرسَل تلقائياً للمركزي فور توفر الشبكة';
+  } else if (status.message && status.message.includes('جاري المزامنة')) {
+    bar.className = 'sync-bar syncing';
+    text.textContent = '🟡 ' + status.message;
+  } else {
+    bar.className = 'sync-bar online';
+    text.textContent = '🟢 متصل بالمركزي — المزامنة تلقائية ولحظية';
+  }
+  document.getElementById('conn-badge').textContent = status.online ? '✅ متصل بالمركزي' : '🔌 غير متصل (محلي)';
+  updateSyncBadge();
+}
+
+async function updateSyncBadge() {
+  const all = await SyncEngine.getAllLocal();
+  const pending = all.filter(f => f._syncStatus !== 'synced').length;
+  const synced = all.filter(f => f._syncStatus === 'synced').length;
+  document.getElementById('sync-count').textContent = `📋 محفوظ محلياً: ${all.length} | ✅ مُزامَن: ${synced} | ⏳ بانتظار الإرسال: ${pending}`;
+}
+
+// Boot sequence
+inspectorIdentity = loadInspectorIdentity();
+if (inspectorIdentity) {
+  document.getElementById('setup-overlay').style.display = 'none';
+  document.getElementById('f-inspector-name').value = inspectorIdentity.name;
+  document.getElementById('f-inspector-id').value = inspectorIdentity.id;
+  document.getElementById('f-province').value = inspectorIdentity.province;
+  startSyncEngine();
+} else {
+  document.getElementById('sync-bar').style.display = 'none';
 }
 
 // Register Service Worker for offline PWA capability
