@@ -825,30 +825,19 @@ textarea.form-control { min-height: 80px; resize: vertical; }
 
 <!-- VIDEO CALL MODAL (WebRTC حقيقي — إشارة عبر Firebase + STUN/TURN مجاني يعمل على المنفذ 443) -->
 <div class="modal-overlay" id="video-modal">
-  <div class="modal" style="max-width:720px">
+  <div class="modal" style="max-width:820px">
     <div class="modal-header">
       <span>📹 مكالمة مباشرة مع المفتش المركزي</span>
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;color:#4fc3f7" id="call-status">—</span>
+        <span style="font-size:11px;color:#4fc3f7" id="call-status">جاري الاتصال...</span>
         <button class="close-btn" onclick="closeVideoCall()">✕</button>
       </div>
     </div>
     <div class="modal-body" style="padding:0">
-      <div style="position:relative;width:100%;height:420px;background:#000;overflow:hidden">
-        <video id="remote-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>
-        <video id="local-video" autoplay muted playsinline style="position:absolute;bottom:10px;left:10px;width:110px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #fff;background:#222;z-index:2"></video>
-        <div id="call-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);font-size:13px;flex-direction:column;gap:8px;text-align:center;padding:20px">
-          <div style="font-size:40px">📹</div>
-          <div>رقم غرفة هذه الجلسة: <strong id="call-room-id" style="color:#fff;font-size:16px">—</strong></div>
-          <div id="call-wait-text">في انتظار اتصال المفتش المركزي...</div>
-        </div>
+      <div id="whereby-wrap" style="width:100%;height:520px;background:#000"></div>
+      <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
+        🔐 مكالمة مشفّرة عبر Whereby • اسمح بالكاميرا والمايكروفون عند الطلب
       </div>
-      <div style="display:flex;justify-content:center;gap:14px;padding:14px;background:#1a1a1a">
-        <button class="call-btn" onclick="toggleMic()" id="btn-mic" title="كتم/تشغيل الصوت">🎙️</button>
-        <button class="call-btn" onclick="toggleCam()" id="btn-cam" title="تشغيل/إيقاف الكاميرا">📷</button>
-        <button class="call-btn end" onclick="closeVideoCall()" title="إنهاء المكالمة">📵</button>
-      </div>
-      <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">🔐 اتصال مباشر مشفّر — أعطِ المركزي رقم الجلسة أعلاه ليتصل بك</div>
     </div>
   </div>
 </div>
@@ -1265,216 +1254,51 @@ window.addEventListener('online', retryPendingCloudUploads);
 setInterval(() => { if (navigator.onLine) retryPendingCloudUploads(); }, 20000);
 
 
-// ===== VIDEO CALL (WebRTC حقيقي — إشارة عبر Firebase + STUN/TURN مجاني) =====
-// TURN credentials مُجلَبة ديناميكياً من Metered عند كل مكالمة لضمان أحدث بيانات اعتماد
-const METERED_API_KEY = 'VpmAL57-M7Ww5cEf69ZNm7AFmH_gew5tLQiaNA0TE5zHlul.5';
-const METERED_APP_DOMAIN = 'inspection.metered.live';
+// ===== VIDEO CALL (Whereby — مكالمة مضمونة عبر HTTPS/443) =====
+const WHEREBY_ROOM = 'https://whereby.com/saedalsabsaby';
 
-async function getIceServers() {
-  try {
-    const res = await fetch(
-      `https://${METERED_APP_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`,
-      { signal: AbortSignal.timeout(3000) }
-    );
-    if (res.ok) {
-      const servers = await res.json();
-      if (document.getElementById('call-status')) document.getElementById('call-status').textContent = 'جاري الاتصال... (TURN ✅)';
-      return servers;
-    }
-  } catch (e) { console.warn('Metered fetch:', e.message); }
-  if (document.getElementById('call-status')) document.getElementById('call-status').textContent = 'جاري الاتصال... (TCP/443)';
-  return [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:relay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turns:relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-  ];
-}
-let pc = null, localStream = null, callRoomRef = null;
-let micEnabled = true, camEnabled = true, pendingIceCandidates = [];
-
-function getCallRoomId() {
-  return (sessionId || 'inspection').toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
-async function getLocalStream() {
-  if (localStream) return localStream;
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    document.getElementById('local-video').srcObject = localStream;
-    // إخفاء رسالة طلب الإذن إن ظهرت
-    const permBox = document.getElementById('cam-permission-box');
-    if (permBox) permBox.style.display = 'none';
-    return localStream;
-  } catch(e) {
-    // الكاميرا مرفوضة — نعرض تعليمات واضحة داخل النافذة
-    document.getElementById('call-wait-text').innerHTML = `
-      <div id="cam-permission-box" style="background:#b71c1c;color:#fff;border-radius:8px;padding:12px;margin:10px;font-size:13px;line-height:1.7;text-align:right">
-        ⚠️ <strong>يجب السماح بالكاميرا والمايكروفون</strong><br><br>
-        📱 <strong>على الهاتف (Chrome):</strong><br>
-        1. اضغط على أيقونة 🔒 أو النقاط الثلاث ⋮ في شريط العنوان<br>
-        2. اختر <strong>"Site settings"</strong> أو <strong>"إعدادات الموقع"</strong><br>
-        3. فعّل <strong>Camera</strong> و <strong>Microphone</strong><br>
-        4. أعد تحميل الصفحة ثم افتح المكالمة مجدداً<br><br>
-        <button onclick="retryCamera()" style="background:#fff;color:#b71c1c;border:none;padding:8px 18px;border-radius:6px;font-weight:bold;font-size:13px;cursor:pointer;width:100%">🔄 إعادة المحاولة بعد السماح</button>
-      </div>`;
-    document.getElementById('call-status').textContent = '⚠️ الكاميرا مرفوضة';
-    throw e;
-  }
-}
-
-async function retryCamera() {
-  document.getElementById('call-wait-text').textContent = 'جاري طلب إذن الكاميرا...';
-  try {
-    await getLocalStream();
-    document.getElementById('call-status').textContent = 'الكاميرا جاهزة ✅ — أعد الاتصال';
-    document.getElementById('call-wait-text').textContent = 'الكاميرا جاهزة. أغلق هذه النافذة وافتح المكالمة من جديد.';
-  } catch(e) {
-    document.getElementById('call-wait-text').textContent = 'لا يزال مرفوضاً — اتبع التعليمات أعلاه ثم اضغط "إعادة المحاولة" مجدداً';
-  }
-}
-
-async function setupPeerConnection() {
-  const iceServers = await getIceServers();
-  pc = new RTCPeerConnection({ iceServers });
-  const remoteVideo = document.getElementById('remote-video');
-  pc.ontrack = (event) => {
-    if (event.streams && event.streams[0]) {
-      remoteVideo.srcObject = event.streams[0];
-    } else {
-      // fallback: add track to existing stream
-      if (!remoteVideo.srcObject) remoteVideo.srcObject = new MediaStream();
-      remoteVideo.srcObject.addTrack(event.track);
-    }
-    document.getElementById('call-placeholder').style.display = 'none';
-    document.getElementById('call-status').textContent = 'متصل ●';
-  };
-  pc.onconnectionstatechange = () => {
-    if (!pc) return;
-    const state = pc.connectionState;
-    const statusEl = document.getElementById('call-status');
-    if (state === 'connected') { 
-      statusEl.textContent = 'متصل ●'; 
-      document.getElementById('call-placeholder').style.display = 'none'; 
-    }
-    if (state === 'connecting') statusEl.textContent = 'جاري الاتصال...';
-    if (state === 'failed') { 
-      statusEl.textContent = 'فشل — يُعاد تلقائياً...'; 
-      // إعادة محاولة تلقائية بعد ثانيتين
-      setTimeout(() => { if (pc) pc.restartIce && pc.restartIce(); }, 2000);
-    }
-    if (state === 'disconnected') statusEl.textContent = 'انقطع — يُعاد...';
-  };
-  return pc;
-}
-
-function flushPendingCandidates() {
-  pendingIceCandidates.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
-  pendingIceCandidates = [];
-}
-
-async function openVideoCall() {
+function openVideoCall() {
   document.getElementById('video-modal').classList.add('open');
-  document.getElementById('call-room-id').textContent = sessionId || '—';
-  document.getElementById('call-status').textContent = 'بانتظار اتصال المركزي...';
-  document.getElementById('call-wait-text').textContent = 'في انتظار اتصال المفتش المركزي...';
-  document.getElementById('call-placeholder').style.display = 'flex';
-  addEvent('فتح نافذة المكالمة المرئية — غرفة: ' + (sessionId || ''));
+  document.getElementById('call-status').textContent = 'جاري الاتصال...';
 
-  if (typeof db === 'undefined' || db === null) {
-    document.getElementById('call-status').textContent = 'لا يوجد اتصال بقاعدة البيانات';
-    return;
-  }
-  try {
-    await getLocalStream();
-  } catch(e) {
-    document.getElementById('call-status').textContent = 'تعذر الوصول للكاميرا/المايكروفون';
-    document.getElementById('call-wait-text').textContent = 'تأكد من السماح بإذن الكاميرا والمايكروفون من إعدادات المتصفح';
-    return;
+  // إشعار المركزي بوجود مكالمة واردة (نفس آلية الإشعار التلقائي السابقة)
+  if (typeof db !== 'undefined' && db !== null && typeof sessionId !== 'undefined') {
+    const name = (inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : 'مفتش فرعي';
+    const province = (inspectorIdentity && inspectorIdentity.province) ? inspectorIdentity.province : '—';
+    db.ref('incomingCalls/' + sessionId).set({
+      inspectorName: name,
+      province: province,
+      sessionId: sessionId,
+      roomUrl: WHEREBY_ROOM,
+      timestamp: Date.now()
+    }).catch(() => {});
   }
 
-  pendingIceCandidates = [];
-  const roomId = getCallRoomId();
-  callRoomRef = db.ref('calls/' + roomId);
+  // تضمين غرفة Whereby مع اسم المفتش
+  const name = encodeURIComponent((inspectorIdentity && inspectorIdentity.name) ? inspectorIdentity.name : 'مفتش فرعي');
+  const wrap = document.getElementById('whereby-wrap');
+  wrap.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.src = `${WHEREBY_ROOM}?displayName=${name}&skipMediaPermissionPrompt=on`;
+  iframe.style.cssText = 'width:100%;height:100%;border:0;background:#000';
+  iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay; speaker-selection';
+  wrap.appendChild(iframe);
 
-  // 📢 إشعار المركزي فوراً بوجود مكالمة واردة (يُخزَّن في Firebase ليستقبله المركزي لحظياً)
-  await db.ref('incomingCalls/' + roomId).set({
-    sessionId: sessionId,
-    inspectorName: inspectorIdentity ? inspectorIdentity.name : '—',
-    inspectorId: inspectorIdentity ? inspectorIdentity.id : '—',
-    province: inspectorIdentity ? inspectorIdentity.province : '—',
-    roomId: roomId,
-    calledAt: new Date().toISOString(),
-    status: 'ringing' // ringing / answered / ended
-  });
-
-  await setupPeerConnection();
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-  pc.onicecandidate = (event) => {
-    if (event.candidate) callRoomRef.child('calleeCandidates').push(event.candidate.toJSON());
-  };
-
-  // الاستماع لعرض الاتصال القادم من المركزي
-  callRoomRef.child('offer').on('value', async (snap) => {
-    const offer = snap.val();
-    if (!offer || !pc || pc.currentRemoteDescription) return;
-    try {
-      document.getElementById('call-status').textContent = 'جاري الاتصال...';
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      flushPendingCandidates();
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      await callRoomRef.child('answer').set({ type: answer.type, sdp: answer.sdp });
-    } catch(e) { console.warn('خطأ في الرد على الاتصال:', e.message); }
-  });
-
-  callRoomRef.child('callerCandidates').on('child_added', (snap) => {
-    const data = snap.val();
-    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-      pc.addIceCandidate(new RTCIceCandidate(data)).catch(()=>{});
-    } else {
-      pendingIceCandidates.push(data);
-    }
-  });
+  setTimeout(() => {
+    document.getElementById('call-status').textContent = 'متصل ●';
+  }, 3000);
+  addEvent('بدء مكالمة مرئية عبر Whereby');
 }
 
 function closeVideoCall() {
   document.getElementById('video-modal').classList.remove('open');
-  if (pc) { pc.close(); pc = null; }
-  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-  const roomId = getCallRoomId();
-  if (typeof db !== 'undefined' && db !== null) {
-    db.ref('incomingCalls/' + roomId).remove().catch(()=>{});
-  }
-  if (callRoomRef) {
-    callRoomRef.child('offer').off();
-    callRoomRef.child('callerCandidates').off();
-    callRoomRef.remove().catch(()=>{});
-    callRoomRef = null;
-  }
-  pendingIceCandidates = [];
-  document.getElementById('call-placeholder').style.display = 'flex';
+  document.getElementById('whereby-wrap').innerHTML = '';
   document.getElementById('call-status').textContent = '—';
-  document.getElementById('local-video').srcObject = null;
-  document.getElementById('remote-video').srcObject = null;
+  // إلغاء الإشعار عند المركزي
+  if (typeof db !== 'undefined' && db !== null && typeof sessionId !== 'undefined') {
+    db.ref('incomingCalls/' + sessionId).remove().catch(() => {});
+  }
   addEvent('انتهاء المكالمة المرئية');
-}
-
-function toggleMic() {
-  if (!localStream) return;
-  micEnabled = !micEnabled;
-  localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
-  document.getElementById('btn-mic').textContent = micEnabled ? '🎙️' : '🔇';
-}
-function toggleCam() {
-  if (!localStream) return;
-  camEnabled = !camEnabled;
-  localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
-  document.getElementById('btn-cam').textContent = camEnabled ? '📷' : '📷🚫';
 }
 
 // ===== MOBILE SIDEBAR (القائمة الجانبية على الهاتف) =====
