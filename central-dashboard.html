@@ -1056,7 +1056,8 @@ function openReview(sid) {
                   <div>
                     <div style="font-weight:700;color:#880e4f">${p.name}</div>
                     <div style="color:var(--muted)">الحجم: ${p.size} | رُفع: ${p.uploadedAt ? new Date(p.uploadedAt).toLocaleString('ar-SA') : '—'}</div>
-                    <a href="${p.url}" target="_blank" style="font-size:11px;color:#1565c0">📄 فتح المستند / تحميله</a>
+                    <a href="${p.url}" target="_blank" style="font-size:11px;color:#1565c0">📄 فتح / تحميل المستند</a>
+                    <a href="https://docs.google.com/viewer?url=${encodeURIComponent(p.url)}" target="_blank" style="font-size:11px;color:#388e3c;margin-right:8px">🌐 فتح في Google Docs</a>
                   </div>
                 </div>`;
               } else {
