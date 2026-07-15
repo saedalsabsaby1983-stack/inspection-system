@@ -1126,34 +1126,52 @@ function uploadToCloudinary(file) {
       reject(new Error('Cloudinary غير مهيأ'));
       return;
     }
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-    // تحديد نوع الملف بشكل صريح لضمان الرفع الصحيح
+
+    // PDF: نحوّله لصورة PNG قبل الرفع لتجنب مشكلة access_mode على raw files
+    if (file.type === 'application/pdf') {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // نرفع PDF كـ base64 data URI مباشرة — Cloudinary يقبله كـ image
+        const formData = new FormData();
+        formData.append('file', e.target.result); // base64 data URI
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+        formData.append('resource_type', 'image'); // نرفعه كصورة لتجاوز قيود raw
+        formData.append('format', 'jpg'); // تحويل لـ JPG لضمان الوصول العام
+        const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`;
+        fetch(url, { method: 'POST', body: formData })
+          .then(res => { if (!res.ok) throw new Error('فشل الرفع: ' + res.status); return res.json(); })
+          .then(json => { json._isPdf = true; resolve(json); })
+          .catch(err => {
+            // إذا فشل التحويل، نرفعه كـ raw بشكل عادي
+            uploadRaw(file).then(resolve).catch(reject);
+          });
+      };
+      reader.onerror = () => uploadRaw(file).then(resolve).catch(reject);
+      reader.readAsDataURL(file);
+      return;
+    }
+
     const isVideo = file.type.startsWith('video/');
     const isImage = file.type.startsWith('image/');
     const resourceType = isVideo ? 'video' : isImage ? 'image' : 'raw';
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
     const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/${resourceType}/upload`;
     fetch(url, { method: 'POST', body: formData })
-      .then(res => {
-        if (!res.ok) throw new Error('فشل الرفع: ' + res.status);
-        return res.json();
-      })
-      .then(json => {
-        // تحويل الرابط ليكون قابلاً للفتح المباشر من أي متصفح
-        // نستخدم fl_attachment لإجبار المتصفح على التعرف على الملف
-        if (json.secure_url) {
-          if (resourceType === 'raw') {
-            // PDF والمستندات: نستخدم رابط delivery مع تحويل لصيغة مناسبة
-            json._public_url = json.secure_url;
-          } else {
-            json._public_url = json.secure_url;
-          }
-        }
-        resolve(json);
-      })
+      .then(res => { if (!res.ok) throw new Error('فشل الرفع: ' + res.status); return res.json(); })
+      .then(json => resolve(json))
       .catch(reject);
   });
+}
+
+function uploadRaw(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`;
+  return fetch(url, { method: 'POST', body: formData })
+    .then(res => { if (!res.ok) throw new Error('فشل الرفع: ' + res.status); return res.json(); });
 }
 
 function handleUpload(input, type) {
