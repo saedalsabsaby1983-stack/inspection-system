@@ -2,7 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>نظام المفتش الفرعي — وزارة الشؤون الاجتماعية والعمل</title>
 <link rel="manifest" href="manifest-branch.json">
 <meta name="theme-color" content="#1a3a5c">
@@ -373,6 +375,40 @@ textarea.form-control { min-height: 80px; resize: vertical; }
     display: block !important; width: 100%; text-align: left; padding: 10px 14px;
     background: rgba(255,255,255,.08); color: #fff; border: none; font-size: 13px;
   }
+}
+
+/* ===== تحسينات الهاتف المحمول (Mobile) ===== */
+html { -webkit-text-size-adjust: 100%; }
+body { overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+img, video, canvas { max-width: 100%; }
+.main-content { min-width: 0; }
+@media (max-width: 900px) {
+  .header-top { flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
+  .header-badges { padding: 8px 12px; }
+  .status-bar { flex-wrap: wrap; gap: 6px 14px; padding: 6px 12px; }
+  .main-content { padding: 10px; }
+  .modal, .send-modal, .import-modal, .setup-box { width: 94vw !important; max-width: 94vw !important; max-height: 92vh; overflow-y: auto; }
+  .btn, .sidebar-item, .step-item { min-height: 40px; }
+}
+@media (max-width: 700px) {
+  .header-logo { width: 44px; height: 44px; }
+  .header-titles { min-width: 0; }
+  .header-titles h1 { font-size: 13px; }
+  .header-titles h2 { font-size: 11px; }
+  .header-titles h3 { font-size: 10px; }
+  .header-badges > span[style*="margin-right:auto"] { display: none; }
+  .video-grid { grid-template-columns: 1fr; }
+  .card-header, .card-body { padding-left: 10px; padding-right: 10px; }
+  .btn-row .btn { flex: 1 1 auto; justify-content: center; }
+  /* 16px يمنع تكبير الصفحة تلقائياً في iPhone عند الضغط على حقل */
+  input, select, textarea, .form-control { font-size: 16px !important; }
+  body { padding-bottom: env(safe-area-inset-bottom, 0); }
+}
+
+@media (max-width: 700px) {
+  .steps-bar { padding: 0 6px; -webkit-overflow-scrolling: touch; position: sticky; top: 0; z-index: 400; }
+  .step-item { min-width: 72px; padding: 8px 8px; }
+  .mobile-menu-btn { bottom: calc(16px + env(safe-area-inset-bottom, 0)); }
 }
 </style>
 </head>
@@ -1555,6 +1591,16 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
+</script>
+
+<script>
+// إغلاق القائمة الجانبية تلقائياً بعد اختيار أي عنصر على الهاتف
+document.addEventListener('click', function(e){
+  var sb = document.getElementById('sidebar');
+  if (sb && sb.classList.contains('mobile-open') && e.target.closest('.sidebar-item')) {
+    if (typeof closeMobileSidebar === 'function') closeMobileSidebar();
+  }
+});
 </script>
 </body>
 </html>
